@@ -1,0 +1,57 @@
+name: Fetch data and update investment dashboard
+
+on:
+  schedule:
+    - cron: '30 3 * * *'   # 3:30 AM UTC = 9:00 AM IST, adjust as you like
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch data (incl. broker login)
+        env:
+          ZERODHA_LOGIN_NAME: ${{ secrets.ZERODHA_LOGIN_NAME }}
+          ZERODHA_PASSWORD: ${{ secrets.ZERODHA_PASSWORD }}
+          KITE_API_KEY: ${{ secrets.KITE_API_KEY }}
+          KITE_API_SECRET: ${{ secrets.KITE_API_SECRET }}
+          KITE_TOTP_KEY: ${{ secrets.KITE_TOTP_KEY }}
+          BASE_CSV_DRIVE_FILE_ID: ${{ secrets.BASE_CSV_DRIVE_FILE_ID }}
+        run: python fetch_data.py
+
+      - name: Generate dashboard
+        run: python investment_metrics.py portfolio_data.csv investment_dashboard.html
+
+      - name: Commit and push updated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add investment_dashboard.html portfolio_data.csv
+          git diff --staged --quiet || git commit -m "Auto-update data and dashboard"
+          git push
+
+      # Optional: get notified if the pipeline breaks (e.g. Zerodha login fails).
+      # Uncomment and add a SLACK_WEBHOOK_URL secret to use this.
+      # - name: Notify on failure
+      #   if: failure()
+      #   run: |
+      #     curl -X POST -H 'Content-type: application/json' \
+      #       --data '{"text":"Dashboard pipeline failed - check GitHub Actions logs."}' \
+      #       "${{ secrets.SLACK_WEBHOOK_URL }}"
