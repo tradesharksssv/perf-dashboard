@@ -1,0 +1,6 @@
+pandas
+numpy
+requests
+selenium>=4.6
+pyotp
+kiteconnect
