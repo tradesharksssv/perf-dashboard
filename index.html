@@ -11,7 +11,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;padding:2rem;}
 h1{font-size:22px;font-weight:500;margin-bottom:.25rem}
-.filter-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.filter-bar{display:flex;gap:8px;margin:0 -2rem 1rem;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:40;background:#f5f5f3;padding:12px 2rem;border-bottom:1px solid #e0ded9;box-shadow:0 4px 10px rgba(0,0,0,.04)}
 .filter-btn{font-size:12px;padding:5px 14px;border:.5px solid #e0ded9;border-radius:20px;background:#fff;cursor:pointer;color:#636360}
 .filter-btn:hover{background:#f5f5f3}
 .filter-btn.active{background:#185FA5;color:#fff;border-color:#185FA5}
@@ -56,7 +56,7 @@ footer{font-size:12px;color:#888780;margin-top:2rem;padding-top:1rem;border-top:
 </head>
 <body>
 <h1>Portfolio performance dashboard</h1>
-<p class="sub">Generated September 12, 2026 at 12:13 &nbsp;·&nbsp; 569 trading sessions</p>
+<p class="sub">Generated September 12, 2026 at 12:28 &nbsp;·&nbsp; 569 trading sessions</p>
 
 <p class="sec">Return performance</p>
 <div class="kpi-grid">
@@ -240,7 +240,7 @@ footer{font-size:12px;color:#888780;margin-top:2rem;padding-top:1rem;border-top:
       </thead>
       <tbody id="benchmarkScorecardBody">
         <tr>
-          <td><b>Strategy</b></td>
+          <td><b>TradeSharks</b></td>
           <td><b>24.2%</b></td>
           <td>—</td>
           <td><b>-2.87%</b></td>
@@ -298,7 +298,7 @@ footer{font-size:12px;color:#888780;margin-top:2rem;padding-top:1rem;border-top:
       </thead>
       <tbody id="mfScorecardBody">
         <tr>
-          <td><b>Strategy</b></td>
+          <td><b>TradeSharks</b></td>
           <td><b>24.2%</b></td>
           <td>—</td>
           <td><b>-2.87%</b></td>
@@ -389,9 +389,28 @@ function pctLabel(v) {
   return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
 }
 
+/* Shared visual style so the tooltip itself reads as a crisp, high-contrast
+   callout — combined with 'nearest' interaction mode below, this is what
+   makes the line under the cursor stand out instead of a wall of numbers. */
+const TOOLTIP_BASE = {
+  backgroundColor: 'rgba(20,20,18,.94)',
+  titleColor: 'rgba(255,255,255,.7)',
+  titleFont: { size: 11, weight: '500' },
+  bodyColor: '#fff',
+  bodyFont: { size: 13, weight: '700' },
+  padding: 10,
+  cornerRadius: 8,
+  displayColors: true,
+  boxWidth: 10,
+  boxHeight: 10,
+  boxPadding: 4,
+  usePointStyle: true
+};
+
 /* Tooltip for "growth of ₹100" style equity curves: shows the return since
    the start of the visible window rather than the raw rebased index value. */
 const TOOLTIP_RETURN = {
+  ...TOOLTIP_BASE,
   callbacks: {
     label: (ctx) => ' ' + ctx.dataset.label + ': ' + pctLabel(ctx.parsed.y - 100) +
       '  (₹' + ctx.parsed.y.toFixed(2) + ')'
@@ -399,14 +418,17 @@ const TOOLTIP_RETURN = {
 };
 
 const TOOLTIP_DD = {
+  ...TOOLTIP_BASE,
   callbacks: { label: (ctx) => ' ' + ctx.dataset.label + ': ' + pctLabel(ctx.parsed.y) }
 };
 
 const TOOLTIP_PCT = {
+  ...TOOLTIP_BASE,
   callbacks: { label: (ctx) => ' ' + (ctx.dataset.label || 'Value') + ': ' + pctLabel(ctx.parsed.y) }
 };
 
 const TOOLTIP_IDLE = {
+  ...TOOLTIP_BASE,
   callbacks: {
     label: (ctx) => ctx.dataset.yAxisID === 'yPct'
       ? ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + '%'
@@ -725,6 +747,11 @@ const MF_COLORS = [
   '#D35400','#8E44AD','#16A085','#C0392B'
 ];
 
+/* Hover emphasis shared by every dataset in the multi-line comparison charts
+   below: with interaction mode 'nearest', only the line closest to the
+   cursor gets this treatment, so it visibly pops out of the rest. */
+const LINE_HOVER = { hoverBorderWidth: 4, pointHoverRadius: 5, pointHoverBorderWidth: 2 };
+
 const mfDatasets = allMFNames.map((name, idx) => ({
   label: name,
   borderColor: MF_COLORS[idx % MF_COLORS.length],
@@ -732,17 +759,18 @@ const mfDatasets = allMFNames.map((name, idx) => ({
   borderWidth: 1.5,
   pointRadius: 0,
   tension: .3,
-  data: []
+  data: [],
+  ...LINE_HOVER
 }));
 
 const mfChart = new Chart(document.getElementById('mfChart'), {
   type: 'line',
   data: { labels: [], datasets: [
-    { label: 'Strategy', borderColor: '#185FA5', borderWidth: 3, pointRadius: 0, tension: .3, data: [] },
+    { label: 'TradeSharks', borderColor: '#185FA5', borderWidth: 3, pointRadius: 0, tension: .3, data: [], ...LINE_HOVER },
     ...mfDatasets
   ] },
   options: { responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'nearest', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
       tooltip: TOOLTIP_RETURN,
@@ -758,17 +786,18 @@ const mfDDDatasets = allMFNames.map((name, idx) => ({
   borderWidth: 1.5,
   pointRadius: 0,
   tension: .3,
-  data: []
+  data: [],
+  ...LINE_HOVER
 }));
 
 const mfDDChart = new Chart(document.getElementById('mfDDChart'), {
   type: 'line',
   data: { labels: [], datasets: [
-    { label: 'Strategy', borderColor: '#185FA5', borderWidth: 3, pointRadius: 0, tension: .3, data: [] },
+    { label: 'TradeSharks', borderColor: '#185FA5', borderWidth: 3, pointRadius: 0, tension: .3, data: [], ...LINE_HOVER },
     ...mfDDDatasets
   ] },
   options: { responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'nearest', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
       tooltip: TOOLTIP_DD,
@@ -780,16 +809,16 @@ const mfDDChart = new Chart(document.getElementById('mfDDChart'), {
 const benchmarkChart = new Chart(document.getElementById('benchmarkChart'), {
   type: 'line',
   data: { labels: [], datasets: [
-    { label: 'Strategy',   borderColor: BRAND_COLORS.strategy,  backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: .3 },
-    { label: 'Nifty',      borderColor: BRAND_COLORS.nifty,     backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Sensex',     borderColor: BRAND_COLORS.sensex,    backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Bank Nifty', borderColor: BRAND_COLORS.bankNifty, backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Midcap',     borderColor: BRAND_COLORS.midcap,    backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Smallcap',   borderColor: BRAND_COLORS.smallcap,  backgroundColor: 'transparent', pointRadius: 0, tension: .3 }
+    { label: 'TradeSharks',   borderColor: BRAND_COLORS.strategy,  backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Nifty',      borderColor: BRAND_COLORS.nifty,     backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Sensex',     borderColor: BRAND_COLORS.sensex,    backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Bank Nifty', borderColor: BRAND_COLORS.bankNifty, backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Midcap',     borderColor: BRAND_COLORS.midcap,    backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Smallcap',   borderColor: BRAND_COLORS.smallcap,  backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER }
   ] },
   options: {
     responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'nearest', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
       tooltip: TOOLTIP_RETURN,
@@ -801,14 +830,14 @@ const benchmarkChart = new Chart(document.getElementById('benchmarkChart'), {
 const drawdownChart = new Chart(document.getElementById('drawdownChart'), {
   type: 'line',
   data: { labels: [], datasets: [
-    { label: 'Strategy', borderColor: BRAND_COLORS.strategy, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: .3 },
-    { label: 'Nifty',    borderColor: BRAND_COLORS.nifty,    backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Midcap',   borderColor: BRAND_COLORS.midcap,   backgroundColor: 'transparent', pointRadius: 0, tension: .3 },
-    { label: 'Smallcap', borderColor: BRAND_COLORS.smallcap, backgroundColor: 'transparent', pointRadius: 0, tension: .3 }
+    { label: 'TradeSharks', borderColor: BRAND_COLORS.strategy, backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Nifty',    borderColor: BRAND_COLORS.nifty,    backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Midcap',   borderColor: BRAND_COLORS.midcap,   backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER },
+    { label: 'Smallcap', borderColor: BRAND_COLORS.smallcap, backgroundColor: 'transparent', pointRadius: 0, tension: .3, ...LINE_HOVER }
   ] },
   options: {
     responsive: true, maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
+    interaction: { mode: 'nearest', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
       tooltip: TOOLTIP_DD,
@@ -980,7 +1009,7 @@ function applyFilter(months) {
   renderAlphaTable();
 
   /* Benchmark scorecard — rebuild data, then render (sort persists) */
-  benchmarkRowsData = [{ label: 'Strategy', ret: stratStats.ret, alpha: null, maxDD: stratStats.maxDD, pinned: true }];
+  benchmarkRowsData = [{ label: 'TradeSharks', ret: stratStats.ret, alpha: null, maxDD: stratStats.maxDD, pinned: true }];
   BM_EQUITY.arrays.forEach((arr, idx) => {
     const stats = computeStats(arr.slice(start, end));
     if (!stats) return;
@@ -994,7 +1023,7 @@ function applyFilter(months) {
   renderBenchmarkTable();
 
   /* Mutual fund scorecard — rebuild data, then render (sort + search persist) */
-  mfRowsData = [{ label: 'Strategy', ret: stratStats.ret, alpha: null, maxDD: stratStats.maxDD, pinned: true }];
+  mfRowsData = [{ label: 'TradeSharks', ret: stratStats.ret, alpha: null, maxDD: stratStats.maxDD, pinned: true }];
   allMFNames.forEach((name, idx) => {
     const stats = computeStats(allMFEquity[idx].slice(start, end));
     if (!stats) return;
