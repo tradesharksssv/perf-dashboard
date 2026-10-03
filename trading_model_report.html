@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading model performance report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.2.0/chartjs-plugin-zoom.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;padding:2rem}
+h1{font-size:22px;font-weight:500;margin-bottom:.25rem}
+.sub{font-size:14px;color:#6b6b66;margin-bottom:1.5rem}
+.sec{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#888780;margin:1.75rem 0 .75rem}
+.hint{font-size:12px;color:#888780;margin-bottom:.75rem}
+.filter-bar{position:sticky;top:0;z-index:50;background:#f5f5f3;margin:0 -2rem 1.5rem -2rem;padding:.9rem 2rem;border-bottom:.5px solid #e0ded9;display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+.filter-bar-disabled{font-size:13px;color:#888780}
+.filter-presets{display:flex;gap:6px}
+.filter-btn{font-size:12px;padding:5px 12px;border:.5px solid #e0ded9;border-radius:20px;background:#fff;cursor:pointer;color:#636360}
+.filter-btn:hover{border-color:#185FA5;color:#185FA5}
+.filter-btn.active{background:#185FA5;border-color:#185FA5;color:#fff}
+.filter-custom{display:flex;align-items:center;gap:8px;font-size:12px;color:#636360}
+.filter-custom input[type="date"]{font-size:12px;padding:4px 6px;border:.5px solid #e0ded9;border-radius:6px;background:#fff;color:#1a1a18}
+.filter-summary{margin-left:auto;font-size:12px;color:#888780}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kpi{background:#fff;border:.5px solid #e0ded9;border-radius:10px;padding:1rem;transition:box-shadow .15s ease,transform .15s ease}
+.kpi:hover{box-shadow:0 6px 16px rgba(0,0,0,.07);transform:translateY(-1px)}
+.kpi-label{font-size:12px;color:#888780;margin-bottom:4px}
+.kpi-value{font-size:22px;font-weight:500}
+.kpi-sub{font-size:12px;color:#888780;margin-top:2px}
+.good{color:#3B6D11}.bad{color:#A32D2D}.neutral{color:#636360}
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;margin-top:.75rem}
+.chart-card{background:#fff;border:.5px solid #e0ded9;border-radius:10px;padding:1.25rem;transition:box-shadow .15s ease}
+.chart-card:hover{box-shadow:0 6px 16px rgba(0,0,0,.05)}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:6px}
+.chart-header .chart-title{margin-bottom:0}
+.icon-btn{font-size:11px;padding:4px 10px;border:.5px solid #e0ded9;border-radius:6px;background:#fff;cursor:pointer;color:#636360;white-space:nowrap}
+.icon-btn:hover{background:#f5f5f3;border-color:#185FA5;color:#185FA5}
+.chart-title{font-size:14px;font-weight:500;margin-bottom:1rem}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;font-size:12px;color:#888780;padding:6px 0;border-bottom:.5px solid #e0ded9}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:#185FA5}
+th.sort-asc::after{content:' ▲';font-size:8px}
+th.sort-desc::after{content:' ▼';font-size:8px}
+td{padding:8px 0;border-bottom:.5px solid #f0ede8}
+footer{font-size:12px;color:#888780;margin-top:2rem;padding-top:1rem;border-top:.5px solid #e0ded9}
+</style>
+</head>
+<body>
+<h1>Trading model performance report</h1>
+<p class="sub">Generated October 03, 2026 at 15:15</p>
+
+<div class="filter-bar" id="filterBar">
+  <div class="filter-presets">
+    <button class="filter-btn active" data-preset="all">All</button>
+    <button class="filter-btn" data-preset="1m">1M</button>
+    <button class="filter-btn" data-preset="3m">3M</button>
+    <button class="filter-btn" data-preset="6m">6M</button>
+    <button class="filter-btn" data-preset="ytd">YTD</button>
+    <button class="filter-btn" data-preset="1y">1Y</button>
+  </div>
+  <div class="filter-custom">
+    <label>From <input type="date" id="customStart" min="2025-08-05" max="2026-09-25"></label>
+    <label>To <input type="date" id="customEnd" min="2025-08-05" max="2026-09-25"></label>
+    <button class="icon-btn" id="applyCustomRange">Apply</button>
+    <button class="icon-btn" id="clearCustomRange">Clear</button>
+  </div>
+  <div class="filter-summary" id="filterSummary">Showing all 160 trades</div>
+</div>
+
+<p class="sec">Core P&amp;L</p>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">Total trades</div><div class="kpi-value neutral" id="kpi-total-trades">160</div></div>
+  <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-value good" id="kpi-win-rate">93.75%</div></div>
+  <div class="kpi"><div class="kpi-label">Profit factor</div><div class="kpi-value good" id="kpi-profit-factor">6.78</div><div class="kpi-sub">Gains ÷ losses — above 1 is profitable</div></div>
+  <div class="kpi"><div class="kpi-label">Win / loss ratio</div><div class="kpi-value bad" id="kpi-win-loss-ratio">0.33</div></div>
+  <div class="kpi"><div class="kpi-label">Avg pnl_perc</div><div class="kpi-value good" id="kpi-avg-pnl">+1.2675%</div></div>
+  <div class="kpi"><div class="kpi-label">Total P&amp;L</div><div class="kpi-value good" id="kpi-total-pnl">+60980.14</div></div>
+  <div class="kpi"><div class="kpi-label">Largest win</div><div class="kpi-value good" id="kpi-largest-win">+14.9870%</div></div>
+  <div class="kpi"><div class="kpi-label">Largest loss</div><div class="kpi-value bad" id="kpi-largest-loss">-9.7800%</div></div>
+</div>
+
+<p class="sec">Risk &amp; consistency</p>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-label">Volatility (σ of pnl_perc)</div><div class="kpi-value neutral" id="kpi-volatility">2.7319</div></div>
+  <div class="kpi"><div class="kpi-label">Sharpe-like ratio</div><div class="kpi-value good" id="kpi-sharpe">+0.464</div></div>
+  <div class="kpi"><div class="kpi-label">Max drawdown</div><div class="kpi-value bad" id="kpi-max-drawdown">-7284.55</div></div>
+  <div class="kpi"><div class="kpi-label">Longest win streak</div><div class="kpi-value good" id="kpi-win-streak">57</div></div>
+  <div class="kpi"><div class="kpi-label">Longest loss streak</div><div class="kpi-value bad" id="kpi-loss-streak">5</div></div>
+  <div class="kpi"><div class="kpi-label">Avg days held</div><div class="kpi-value neutral" id="kpi-avg-days-held">8.88</div><div class="kpi-sub" id="kpi-avg-days-held-sub">Winners: 8.25 · Losers: 18.30</div></div>
+</div>
+
+<p class="sec">Charts</p>
+<p class="hint">Scroll/pinch to zoom on the equity curve and rolling win-rate charts, drag to pan, double-click to reset.</p>
+<div class="chart-grid">
+  <div class="chart-card" style="grid-column:1/-1">
+    <div class="chart-header">
+      <div class="chart-title">Cumulative P&amp;L by trade sequence</div>
+      <button class="icon-btn" data-chart-reset="equityChart" title="Reset zoom">⤾ Reset</button>
+    </div>
+    <div style="position:relative;height:240px"><canvas id="equityChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Win / loss / flat</div>
+    <div style="position:relative;height:200px"><canvas id="winPieChart"></canvas></div>
+    <div id="pieLegend" style="display:flex;justify-content:center;gap:14px;margin-top:12px;font-size:12px;color:#636360;flex-wrap:wrap"></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Rolling win rate</div>
+      <button class="icon-btn" data-chart-reset="rollingChart" title="Reset zoom">⤾ Reset</button>
+    </div>
+    <div style="position:relative;height:200px"><canvas id="rollingChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Win rate by symbol</div>
+    <div style="position:relative;height:220px"><canvas id="symbolChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Win rate by exit strategy</div>
+    <div style="position:relative;height:220px"><canvas id="exitChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Win rate by model type</div>
+    <div style="position:relative;height:220px"><canvas id="modelChart"></canvas></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Holding period vs outcome</div>
+    <div style="position:relative;height:220px"><canvas id="holdChart"></canvas></div>
+  </div>
+</div>
+
+<p class="sec">Breakdowns</p>
+<div class="chart-grid">
+  <div class="chart-card" style="grid-column:1/-1">
+    <div class="chart-title">By trading symbol</div>
+    <table id="symbolTable">
+      <thead><tr>
+        <th class="sortable" data-sort="label">Symbol</th>
+        <th class="sortable" data-sort="trades">Trades</th>
+        <th class="sortable" data-sort="win_rate_pct">Win rate</th>
+        <th class="sortable" data-sort="avg_pnl_perc">Avg pnl%</th>
+        <th class="sortable" data-sort="total_pnl_amount">Total P&amp;L</th>
+        <th class="sortable" data-sort="avg_day_held">Avg days held</th>
+      </tr></thead>
+      <tbody><tr><td>ADANIGREEN</td><td>8</td><td>100.0%</td><td class='good'>+2.6532%</td><td>+7030.30</td><td>3.88</td></tr>
+<tr><td>PAYTM</td><td>5</td><td>100.0%</td><td class='good'>+2.6222%</td><td>+5629.70</td><td>3.6</td></tr>
+<tr><td>MUTHOOTFIN</td><td>3</td><td>100.0%</td><td class='good'>+3.7843%</td><td>+5201.00</td><td>17.0</td></tr>
+<tr><td>DLF</td><td>3</td><td>100.0%</td><td class='good'>+3.0047%</td><td>+4622.90</td><td>16.33</td></tr>
+<tr><td>GLAND</td><td>7</td><td>100.0%</td><td class='good'>+1.3061%</td><td>+3998.00</td><td>2.14</td></tr>
+<tr><td>SIEMENS</td><td>4</td><td>100.0%</td><td class='good'>+2.3368%</td><td>+3597.50</td><td>34.0</td></tr>
+<tr><td>ADANIENSOL</td><td>6</td><td>100.0%</td><td class='good'>+2.1075%</td><td>+3483.45</td><td>6.17</td></tr>
+<tr><td>VEDL</td><td>5</td><td>100.0%</td><td class='good'>+1.2010%</td><td>+2548.85</td><td>1.8</td></tr>
+<tr><td>NYKAA</td><td>1</td><td>100.0%</td><td class='good'>+5.0690%</td><td>+2252.80</td><td>22.0</td></tr>
+<tr><td>TATAMOTORS</td><td>2</td><td>100.0%</td><td class='good'>+1.5030%</td><td>+1941.10</td><td>2.0</td></tr>
+<tr><td>ADANIPORTS</td><td>2</td><td>100.0%</td><td class='good'>+3.5385%</td><td>+1732.40</td><td>2.5</td></tr>
+<tr><td>TECHM</td><td>4</td><td>100.0%</td><td class='good'>+0.7492%</td><td>+1704.20</td><td>30.25</td></tr>
+<tr><td>COLPAL</td><td>3</td><td>100.0%</td><td class='good'>+0.9663%</td><td>+1681.20</td><td>1.33</td></tr>
+<tr><td>TATASTEEL</td><td>3</td><td>100.0%</td><td class='good'>+1.5020%</td><td>+1538.19</td><td>3.33</td></tr>
+<tr><td>BAJAJFINSV</td><td>3</td><td>100.0%</td><td class='good'>+1.1137%</td><td>+1352.90</td><td>2.33</td></tr>
+<tr><td>INDUSINDBK</td><td>1</td><td>100.0%</td><td class='good'>+3.2520%</td><td>+1223.60</td><td>55.0</td></tr>
+<tr><td>HDFCAMC</td><td>1</td><td>100.0%</td><td class='good'>+1.9000%</td><td>+1222.50</td><td>4.0</td></tr>
+<tr><td>UPL</td><td>1</td><td>100.0%</td><td class='good'>+5.3150%</td><td>+1123.50</td><td>1.0</td></tr>
+<tr><td>ASIANPAINT</td><td>8</td><td>100.0%</td><td class='good'>+0.8094%</td><td>+1102.10</td><td>0.25</td></tr>
+<tr><td>ADANIENT</td><td>4</td><td>100.0%</td><td class='good'>+0.9455%</td><td>+1055.00</td><td>4.5</td></tr>
+<tr><td>BIOCON</td><td>2</td><td>100.0%</td><td class='good'>+0.9245%</td><td>+998.55</td><td>1.0</td></tr>
+<tr><td>BANDHANBNK</td><td>2</td><td>100.0%</td><td class='good'>+1.7240%</td><td>+931.60</td><td>12.0</td></tr>
+<tr><td>MCX</td><td>3</td><td>100.0%</td><td class='good'>+10.0870%</td><td>+822.00</td><td>37.67</td></tr>
+<tr><td>IDEA</td><td>2</td><td>100.0%</td><td class='good'>+0.9785%</td><td>+742.56</td><td>4.0</td></tr>
+<tr><td>MANAPPURAM</td><td>2</td><td>100.0%</td><td class='good'>+1.1180%</td><td>+680.40</td><td>1.5</td></tr>
+<tr><td>SONACOMS</td><td>1</td><td>100.0%</td><td class='good'>+1.6450%</td><td>+661.70</td><td>3.0</td></tr>
+<tr><td>INDUSTOWER</td><td>2</td><td>100.0%</td><td class='good'>+1.0290%</td><td>+614.15</td><td>2.0</td></tr>
+<tr><td>BAJAJHLDNG</td><td>1</td><td>100.0%</td><td class='good'>+0.9220%</td><td>+612.00</td><td>1.0</td></tr>
+<tr><td>SBICARD</td><td>2</td><td>100.0%</td><td class='good'>+1.0835%</td><td>+599.70</td><td>3.5</td></tr>
+<tr><td>WHIRLPOOL</td><td>1</td><td>100.0%</td><td class='good'>+1.8340%</td><td>+585.05</td><td>1.0</td></tr>
+<tr><td>EICHERMOT</td><td>3</td><td>66.67%</td><td class='good'>+1.3703%</td><td>+505.00</td><td>3.67</td></tr>
+<tr><td>SAIL</td><td>2</td><td>100.0%</td><td class='good'>+0.9060%</td><td>+503.22</td><td>54.0</td></tr>
+<tr><td>PIIND</td><td>1</td><td>100.0%</td><td class='good'>+1.0030%</td><td>+495.50</td><td>1.0</td></tr>
+<tr><td>TVSMOTOR</td><td>1</td><td>100.0%</td><td class='good'>+0.9090%</td><td>+467.80</td><td>3.0</td></tr>
+<tr><td>LALPATHLAB</td><td>1</td><td>100.0%</td><td class='good'>+0.8860%</td><td>+465.40</td><td>1.0</td></tr>
+<tr><td>NAM-INDIA</td><td>1</td><td>100.0%</td><td class='good'>+1.4460%</td><td>+453.60</td><td>2.0</td></tr>
+<tr><td>NAUKRI</td><td>2</td><td>100.0%</td><td class='good'>+1.0070%</td><td>+420.20</td><td>4.0</td></tr>
+<tr><td>ITC</td><td>5</td><td>80.0%</td><td class='good'>+0.2676%</td><td>+414.95</td><td>11.4</td></tr>
+<tr><td>OFSS</td><td>2</td><td>100.0%</td><td class='good'>+1.1570%</td><td>+395.00</td><td>2.0</td></tr>
+<tr><td>BAJFINANCE</td><td>4</td><td>100.0%</td><td class='good'>+0.3762%</td><td>+322.30</td><td>0.0</td></tr>
+<tr><td>POLICYBZR</td><td>1</td><td>100.0%</td><td class='good'>+0.8880%</td><td>+318.00</td><td>1.0</td></tr>
+<tr><td>SYNGENE</td><td>1</td><td>100.0%</td><td class='good'>+0.9530%</td><td>+288.80</td><td>4.0</td></tr>
+<tr><td>COFORGE</td><td>1</td><td>100.0%</td><td class='good'>+1.0640%</td><td>+274.50</td><td>3.0</td></tr>
+<tr><td>CUMMINSIND</td><td>1</td><td>100.0%</td><td class='good'>+2.3740%</td><td>+255.90</td><td>2.0</td></tr>
+<tr><td>SUNPHARMA</td><td>1</td><td>100.0%</td><td class='good'>+1.0240%</td><td>+249.00</td><td>1.0</td></tr>
+<tr><td>TCS</td><td>1</td><td>100.0%</td><td class='good'>+1.7820%</td><td>+219.20</td><td>17.0</td></tr>
+<tr><td>BHARTIARTL</td><td>2</td><td>100.0%</td><td class='good'>+0.4315%</td><td>+189.70</td><td>2.5</td></tr>
+<tr><td>COALINDIA</td><td>1</td><td>100.0%</td><td class='good'>+0.9710%</td><td>+175.50</td><td>2.0</td></tr>
+<tr><td>HDFCBANK</td><td>3</td><td>100.0%</td><td class='good'>+0.2963%</td><td>+156.40</td><td>3.0</td></tr>
+<tr><td>HINDALCO</td><td>1</td><td>100.0%</td><td class='good'>+1.0030%</td><td>+144.40</td><td>8.0</td></tr>
+<tr><td>LAURUSLABS</td><td>1</td><td>100.0%</td><td class='good'>+0.5100%</td><td>+118.20</td><td>3.0</td></tr>
+<tr><td>BHARATFORG</td><td>1</td><td>100.0%</td><td class='good'>+3.0000%</td><td>+112.90</td><td>1.0</td></tr>
+<tr><td>BERGEPAINT</td><td>1</td><td>100.0%</td><td class='good'>+1.1680%</td><td>+101.50</td><td>9.0</td></tr>
+<tr><td>PEL</td><td>1</td><td>100.0%</td><td class='good'>+0.8110%</td><td>+92.10</td><td>3.0</td></tr>
+<tr><td>HAVELLS</td><td>1</td><td>100.0%</td><td class='good'>+0.3570%</td><td>+84.00</td><td>11.0</td></tr>
+<tr><td>TORNTPHARM</td><td>1</td><td>100.0%</td><td class='good'>+0.3120%</td><td>+79.10</td><td>5.0</td></tr>
+<tr><td>JUBLFOOD</td><td>1</td><td>100.0%</td><td class='good'>+0.8570%</td><td>+65.40</td><td>6.0</td></tr>
+<tr><td>DIVISLAB</td><td>1</td><td>100.0%</td><td class='good'>+0.9430%</td><td>+56.50</td><td>2.0</td></tr>
+<tr><td>GRAPHITE</td><td>1</td><td>100.0%</td><td class='good'>+3.3200%</td><td>+50.00</td><td>10.0</td></tr>
+<tr><td>FEDERALBNK</td><td>3</td><td>100.0%</td><td class='good'>+3.0430%</td><td>+35.20</td><td>28.33</td></tr>
+<tr><td>ICICIBANK</td><td>1</td><td>100.0%</td><td class='good'>+0.1360%</td><td>+22.80</td><td>0.0</td></tr>
+<tr><td>UNIONBANK</td><td>1</td><td>100.0%</td><td class='good'>+2.8780%</td><td>+4.42</td><td>4.0</td></tr>
+<tr><td>PNB</td><td>1</td><td>100.0%</td><td class='good'>+1.5480%</td><td>+1.73</td><td>96.0</td></tr>
+<tr><td>IOC</td><td>2</td><td>50.0%</td><td class='bad'>-0.8980%</td><td>-2.98</td><td>4.5</td></tr>
+<tr><td>ASHOKLEY</td><td>1</td><td>0.0%</td><td class='bad'>-5.3500%</td><td>-22.66</td><td>6.0</td></tr>
+<tr><td>GOLDBEES</td><td>1</td><td>0.0%</td><td class='bad'>-7.2740%</td><td>-30.68</td><td>7.0</td></tr>
+<tr><td>HINDUNILVR</td><td>2</td><td>50.0%</td><td class='bad'>-2.6620%</td><td>-980.50</td><td>8.5</td></tr>
+<tr><td>ICICIGI</td><td>1</td><td>0.0%</td><td class='bad'>-5.4890%</td><td>-1421.70</td><td>39.0</td></tr>
+<tr><td>DABUR</td><td>6</td><td>83.33%</td><td class='bad'>-0.9702%</td><td>-1630.85</td><td>4.67</td></tr>
+<tr><td>TITAN</td><td>2</td><td>50.0%</td><td class='bad'>-3.6105%</td><td>-1858.10</td><td>9.5</td></tr>
+<tr><td>CHOLAFIN</td><td>3</td><td>66.67%</td><td class='bad'>-0.9587%</td><td>-1899.51</td><td>16.33</td></tr>
+</tbody>
+    </table>
+  </div>
+
+  <div class="chart-card" style="grid-column:1/-1">
+    <div class="chart-title">By exit strategy</div>
+    <table id="exitTable">
+      <thead><tr>
+        <th class="sortable" data-sort="label">Exit strategy</th>
+        <th class="sortable" data-sort="trades">Trades</th>
+        <th class="sortable" data-sort="win_rate_pct">Win rate</th>
+        <th class="sortable" data-sort="avg_pnl_perc">Avg pnl%</th>
+        <th class="sortable" data-sort="total_pnl_amount">Total P&amp;L</th>
+        <th class="sortable" data-sort="avg_day_held">Avg days held</th>
+      </tr></thead>
+      <tbody><tr><td>0.1% Buffer</td><td>73</td><td>100.0%</td><td class='good'>+1.1409%</td><td>+30691.61</td><td>5.86</td></tr>
+<tr><td>Pre-Market Sold</td><td>35</td><td>97.14%</td><td class='good'>+2.3188%</td><td>+22690.70</td><td>9.11</td></tr>
+<tr><td>VCP Sell</td><td>14</td><td>92.86%</td><td class='good'>+3.6257%</td><td>+6393.29</td><td>19.07</td></tr>
+<tr><td>8MA</td><td>10</td><td>100.0%</td><td class='good'>+0.6818%</td><td>+2075.15</td><td>1.7</td></tr>
+<tr><td>Market Auction Sold</td><td>1</td><td>100.0%</td><td class='good'>+1.9000%</td><td>+1222.50</td><td>4.0</td></tr>
+<tr><td>8MA_fallback_to_0.1% Buffer</td><td>9</td><td>100.0%</td><td class='good'>+0.1866%</td><td>+327.00</td><td>0.0</td></tr>
+<tr><td>BTST Sold Same Day</td><td>1</td><td>100.0%</td><td class='good'>+0.5870%</td><td>+198.50</td><td>0.0</td></tr>
+<tr><td>unknown</td><td>5</td><td>60.0%</td><td class='good'>+0.4304%</td><td>+81.44</td><td>4.6</td></tr>
+<tr><td>Manual Sell</td><td>12</td><td>50.0%</td><td class='bad'>-2.1275%</td><td>-2700.05</td><td>30.25</td></tr>
+</tbody>
+    </table>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">By model type</div>
+    <table id="modelTable">
+      <thead><tr>
+        <th class="sortable" data-sort="label">Model</th>
+        <th class="sortable" data-sort="trades">Trades</th>
+        <th class="sortable" data-sort="win_rate_pct">Win rate</th>
+        <th class="sortable" data-sort="avg_pnl_perc">Avg pnl%</th>
+        <th class="sortable" data-sort="total_pnl_amount">Total P&amp;L</th>
+        <th class="sortable" data-sort="avg_day_held">Avg days held</th>
+      </tr></thead>
+      <tbody><tr><td>btst</td><td>86</td><td>98.84%</td><td class='good'>+1.5955%</td><td>+45777.05</td><td>7.22</td></tr>
+<tr><td>btst_5pc</td><td>7</td><td>100.0%</td><td class='good'>+4.2339%</td><td>+13265.10</td><td>32.14</td></tr>
+<tr><td>btst_100_200</td><td>10</td><td>100.0%</td><td class='good'>+1.0737%</td><td>+3744.61</td><td>2.1</td></tr>
+<tr><td>-1</td><td>12</td><td>75.0%</td><td class='good'>+2.9798%</td><td>+1299.58</td><td>12.92</td></tr>
+<tr><td>btst_1_100</td><td>1</td><td>100.0%</td><td class='good'>+1.9000%</td><td>+1222.50</td><td>4.0</td></tr>
+<tr><td>intraday</td><td>44</td><td>86.36%</td><td class='bad'>-0.2826%</td><td>-4328.70</td><td>8.98</td></tr>
+</tbody>
+    </table>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">By account</div>
+    <table id="accountTable">
+      <thead><tr>
+        <th class="sortable" data-sort="label">Account</th>
+        <th class="sortable" data-sort="trades">Trades</th>
+        <th class="sortable" data-sort="win_rate_pct">Win rate</th>
+        <th class="sortable" data-sort="avg_pnl_perc">Avg pnl%</th>
+        <th class="sortable" data-sort="total_pnl_amount">Total P&amp;L</th>
+        <th class="sortable" data-sort="avg_day_held">Avg days held</th>
+      </tr></thead>
+      <tbody><tr><td>new_TS</td><td>160</td><td>93.75%</td><td class='good'>+1.2675%</td><td>+60980.14</td><td>8.88</td></tr>
+</tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  All metrics are computed from pnl_perc / pnl_amount. Use the date filter above to see performance over a
+  specific time window — every KPI, chart and table recomputes for the selected range.
+</footer>
+
+<script>
+const ALL_TRADES    = [{"date": "2025-08-05", "pnl_amount": 37.5, "pnl_perc": 0.223, "symbol": "TITAN", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-05", "pnl_amount": 79.8, "pnl_perc": 0.909, "symbol": "TECHM", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 11.0}, {"date": "2025-08-06", "pnl_amount": 25.4, "pnl_perc": 0.167, "symbol": "HINDUNILVR", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-06", "pnl_amount": 70.8, "pnl_perc": 0.481, "symbol": "ASIANPAINT", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-11", "pnl_amount": 12.6, "pnl_perc": 0.11, "symbol": "BAJAJFINSV", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-11", "pnl_amount": 63.0, "pnl_perc": 0.933, "symbol": "ADANIENT", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 4.0}, {"date": "2025-08-11", "pnl_amount": 92.1, "pnl_perc": 0.811, "symbol": "PEL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2025-08-12", "pnl_amount": 126.6, "pnl_perc": 1.136, "symbol": "ADANIGREEN", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-12", "pnl_amount": 143.83, "pnl_perc": 0.958, "symbol": "TATASTEEL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 8.0}, {"date": "2025-08-13", "pnl_amount": 51.1, "pnl_perc": 0.293, "symbol": "ASIANPAINT", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-13", "pnl_amount": 17.6, "pnl_perc": 0.111, "symbol": "HDFCBANK", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-13", "pnl_amount": 56.5, "pnl_perc": 0.943, "symbol": "DIVISLAB", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 2.0}, {"date": "2025-08-13", "pnl_amount": 65.4, "pnl_perc": 0.857, "symbol": "JUBLFOOD", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 6.0}, {"date": "2025-08-13", "pnl_amount": 249.0, "pnl_perc": 1.024, "symbol": "SUNPHARMA", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-14", "pnl_amount": 22.8, "pnl_perc": 0.101, "symbol": "ASIANPAINT", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-14", "pnl_amount": 25.2, "pnl_perc": 0.119, "symbol": "TECHM", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-14", "pnl_amount": 69.6, "pnl_perc": 0.888, "symbol": "GLAND", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 7.0}, {"date": "2025-08-14", "pnl_amount": 70.0, "pnl_perc": 1.026, "symbol": "NAUKRI", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 7.0}, {"date": "2025-08-18", "pnl_amount": 77.0, "pnl_perc": 0.308, "symbol": "BAJFINANCE", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-18", "pnl_amount": 181.8, "pnl_perc": 1.569, "symbol": "BAJAJFINSV", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 6.0}, {"date": "2025-08-18", "pnl_amount": 399.0, "pnl_perc": 1.883, "symbol": "DABUR", "exit_strategy": "Pre-Market Sold", "model": "intraday", "account": "new_TS", "day_held": 4.0}, {"date": "2025-08-19", "pnl_amount": 271.95, "pnl_perc": 0.898, "symbol": "ADANIENSOL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-19", "pnl_amount": 279.5, "pnl_perc": 0.924, "symbol": "ADANIENT", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-19", "pnl_amount": 283.18, "pnl_perc": 1.517, "symbol": "BANDHANBNK", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 20.0}, {"date": "2025-08-19", "pnl_amount": 288.6, "pnl_perc": 0.96, "symbol": "SBICARD", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-20", "pnl_amount": 206.1, "pnl_perc": 1.007, "symbol": "COLPAL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-21", "pnl_amount": 340.8, "pnl_perc": 1.005, "symbol": "INDUSTOWER", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-08-21", "pnl_amount": 219.2, "pnl_perc": 1.782, "symbol": "TCS", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 17.0}, {"date": "2025-08-25", "pnl_amount": 22.4, "pnl_perc": 0.136, "symbol": "DABUR", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-25", "pnl_amount": 236.5, "pnl_perc": 0.925, "symbol": "ADANIENT", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2025-08-25", "pnl_amount": 88.2, "pnl_perc": 0.402, "symbol": "VEDL", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 3.0}, {"date": "2025-08-26", "pnl_amount": 25.2, "pnl_perc": 0.113, "symbol": "ASIANPAINT", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-26", "pnl_amount": 15.55, "pnl_perc": 0.07, "symbol": "DABUR", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-08-29", "pnl_amount": 22.95, "pnl_perc": 0.092, "symbol": "DABUR", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-01", "pnl_amount": 78.1, "pnl_perc": 0.374, "symbol": "BHARTIARTL", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 4.0}, {"date": "2025-09-01", "pnl_amount": 84.0, "pnl_perc": 0.357, "symbol": "HAVELLS", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 11.0}, {"date": "2025-09-02", "pnl_amount": 562.6, "pnl_perc": 1.778, "symbol": "DABUR", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-03", "pnl_amount": 136.92, "pnl_perc": 0.915, "symbol": "SAIL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 30.0}, {"date": "2025-09-04", "pnl_amount": 29.7, "pnl_perc": 0.129, "symbol": "ASIANPAINT", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-04", "pnl_amount": 238.0, "pnl_perc": 1.012, "symbol": "ITC", "exit_strategy": "Pre-Market Sold", "model": "intraday", "account": "new_TS", "day_held": 44.0}, {"date": "2025-09-08", "pnl_amount": 29.0, "pnl_perc": 0.154, "symbol": "BAJFINANCE", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-08", "pnl_amount": 24.8, "pnl_perc": 0.161, "symbol": "HDFCBANK", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-08", "pnl_amount": 58.9, "pnl_perc": 0.38, "symbol": "ITC", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-08", "pnl_amount": 273.35, "pnl_perc": 1.053, "symbol": "INDUSTOWER", "exit_strategy": "8MA", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2025-09-09", "pnl_amount": 16.2, "pnl_perc": 0.091, "symbol": "ASIANPAINT", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-09", "pnl_amount": 22.8, "pnl_perc": 0.136, "symbol": "ICICIBANK", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-09", "pnl_amount": 79.1, "pnl_perc": 0.312, "symbol": "TORNTPHARM", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 5.0}, {"date": "2025-09-10", "pnl_amount": 131.3, "pnl_perc": 0.529, "symbol": "BAJFINANCE", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-11", "pnl_amount": 19.0, "pnl_perc": 0.107, "symbol": "ASIANPAINT", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-11", "pnl_amount": 111.6, "pnl_perc": 0.489, "symbol": "BHARTIARTL", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 1.0}, {"date": "2025-09-12", "pnl_amount": 85.0, "pnl_perc": 0.514, "symbol": "BAJFINANCE", "exit_strategy": "8MA_fallback_to_0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-12", "pnl_amount": 26.0, "pnl_perc": 0.171, "symbol": "TECHM", "exit_strategy": "8MA", "model": "intraday", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-16", "pnl_amount": 14.0, "pnl_perc": 0.121, "symbol": "ITC", "exit_strategy": "8MA", "model": "btst", "account": "new_TS", "day_held": 0.0}, {"date": "2025-09-16", "pnl_amount": 268.1, "pnl_perc": 1.164, "symbol": "SIEMENS", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-09-18", "pnl_amount": 114.0, "pnl_perc": 0.617, "symbol": "HDFCBANK", "exit_strategy": "0.1% Buffer", "model": "intraday", "account": "new_TS", "day_held": 9.0}, {"date": "2025-09-22", "pnl_amount": 253.0, "pnl_perc": 1.118, "symbol": "ADANIGREEN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2025-09-25", "pnl_amount": 144.4, "pnl_perc": 1.003, "symbol": "HINDALCO", "exit_strategy": "Pre-Market Sold", "model": "intraday", "account": "new_TS", "day_held": 8.0}, {"date": "2025-09-29", "pnl_amount": -1421.7, "pnl_perc": -5.489, "symbol": "ICICIGI", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 39.0}, {"date": "2025-09-29", "pnl_amount": -1895.6, "pnl_perc": -7.444, "symbol": "TITAN", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 19.0}, {"date": "2025-09-29", "pnl_amount": -2653.35, "pnl_perc": -9.78, "symbol": "DABUR", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 24.0}, {"date": "2025-09-29", "pnl_amount": -1005.9, "pnl_perc": -5.491, "symbol": "HINDUNILVR", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 17.0}, {"date": "2025-09-29", "pnl_amount": -308.0, "pnl_perc": -2.127, "symbol": "ITC", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 12.0}, {"date": "2025-10-15", "pnl_amount": 1177.1, "pnl_perc": 1.999, "symbol": "TATAMOTORS", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-10-20", "pnl_amount": 764.0, "pnl_perc": 1.007, "symbol": "TATAMOTORS", "exit_strategy": "8MA", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2025-10-28", "pnl_amount": 1223.6, "pnl_perc": 3.252, "symbol": "INDUSINDBK", "exit_strategy": "Manual Sell", "model": "btst", "account": "new_TS", "day_held": 55.0}, {"date": "2025-10-28", "pnl_amount": -30.68, "pnl_perc": -7.274, "symbol": "GOLDBEES", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 7.0}, {"date": "2025-10-30", "pnl_amount": 828.4, "pnl_perc": 0.977, "symbol": "ADANIGREEN", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-11-07", "pnl_amount": 449.9, "pnl_perc": 0.983, "symbol": "CHOLAFIN", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-11-12", "pnl_amount": 1158.5, "pnl_perc": 1.662, "symbol": "BAJAJFINSV", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-11-12", "pnl_amount": 584.4, "pnl_perc": 0.897, "symbol": "COLPAL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 2.0}, {"date": "2025-11-20", "pnl_amount": 890.7, "pnl_perc": 0.995, "symbol": "COLPAL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-11-20", "pnl_amount": 1414.3, "pnl_perc": 1.569, "symbol": "GLAND", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-11-21", "pnl_amount": 462.5, "pnl_perc": 0.936, "symbol": "BIOCON", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-12-03", "pnl_amount": 612.0, "pnl_perc": 0.922, "symbol": "BAJAJHLDNG", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-12-05", "pnl_amount": 536.05, "pnl_perc": 0.913, "symbol": "BIOCON", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-12-19", "pnl_amount": 1938.0, "pnl_perc": 5.095, "symbol": "PAYTM", "exit_strategy": "0.1% Buffer", "model": "btst_5pc", "account": "new_TS", "day_held": 9.0}, {"date": "2025-12-23", "pnl_amount": -3171.91, "pnl_perc": -5.345, "symbol": "CHOLAFIN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 47.0}, {"date": "2025-12-23", "pnl_amount": 822.5, "pnl_perc": 1.486, "symbol": "CHOLAFIN", "exit_strategy": "Manual Sell", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2025-12-30", "pnl_amount": 2252.8, "pnl_perc": 5.069, "symbol": "NYKAA", "exit_strategy": "0.1% Buffer", "model": "btst_5pc", "account": "new_TS", "day_held": 22.0}, {"date": "2026-01-05", "pnl_amount": 1.56, "pnl_perc": 0.94, "symbol": "IOC", "exit_strategy": "unknown", "model": "-1", "account": "new_TS", "day_held": 4.0}, {"date": "2026-01-05", "pnl_amount": 4.42, "pnl_perc": 2.878, "symbol": "UNIONBANK", "exit_strategy": "unknown", "model": "-1", "account": "new_TS", "day_held": 4.0}, {"date": "2026-01-06", "pnl_amount": -4.54, "pnl_perc": -2.736, "symbol": "IOC", "exit_strategy": "unknown", "model": "-1", "account": "new_TS", "day_held": 5.0}, {"date": "2026-01-08", "pnl_amount": 117.0, "pnl_perc": 1.564, "symbol": "EICHERMOT", "exit_strategy": "unknown", "model": "-1", "account": "new_TS", "day_held": 3.0}, {"date": "2026-01-12", "pnl_amount": -37.0, "pnl_perc": -0.494, "symbol": "EICHERMOT", "exit_strategy": "unknown", "model": "-1", "account": "new_TS", "day_held": 7.0}, {"date": "2026-01-23", "pnl_amount": 198.5, "pnl_perc": 0.587, "symbol": "ADANIENSOL", "exit_strategy": "BTST Sold Same Day", "model": "btst", "account": "new_TS", "day_held": 0.0}, {"date": "2026-01-23", "pnl_amount": 393.7, "pnl_perc": 1.007, "symbol": "PAYTM", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-01-27", "pnl_amount": 634.4, "pnl_perc": 1.863, "symbol": "ADANIPORTS", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 4.0}, {"date": "2026-01-29", "pnl_amount": 653.6, "pnl_perc": 0.926, "symbol": "ADANIGREEN", "exit_strategy": "VCP Sell", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-01-29", "pnl_amount": 654.95, "pnl_perc": 0.927, "symbol": "DLF", "exit_strategy": "VCP Sell", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-01-29", "pnl_amount": 3713.2, "pnl_perc": 5.663, "symbol": "MUTHOOTFIN", "exit_strategy": "VCP Sell", "model": "btst_5pc", "account": "new_TS", "day_held": 45.0}, {"date": "2026-02-03", "pnl_amount": 1556.4, "pnl_perc": 7.318, "symbol": "ADANIENSOL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 1960.0, "pnl_perc": 9.272, "symbol": "ADANIGREEN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 1098.0, "pnl_perc": 5.214, "symbol": "ADANIPORTS", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 867.3, "pnl_perc": 5.16, "symbol": "ASIANPAINT", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 3256.6, "pnl_perc": 6.832, "symbol": "DLF", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 425.0, "pnl_perc": 3.041, "symbol": "EICHERMOT", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 412.05, "pnl_perc": 1.952, "symbol": "ITC", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 667.2, "pnl_perc": 4.688, "symbol": "MUTHOOTFIN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 1841.2, "pnl_perc": 3.921, "symbol": "PAYTM", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 533.36, "pnl_perc": 2.499, "symbol": "TATASTEEL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-03", "pnl_amount": 1123.5, "pnl_perc": 5.315, "symbol": "UPL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-05", "pnl_amount": 861.0, "pnl_perc": 1.049, "symbol": "TATASTEEL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-09", "pnl_amount": 820.6, "pnl_perc": 1.002, "symbol": "MUTHOOTFIN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 5.0}, {"date": "2026-02-09", "pnl_amount": 311.1, "pnl_perc": 1.207, "symbol": "SBICARD", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 6.0}, {"date": "2026-02-18", "pnl_amount": 5.7, "pnl_perc": 1.986, "symbol": "FEDERALBNK", "exit_strategy": "VCP Sell", "model": "intraday", "account": "new_TS", "day_held": 6.0}, {"date": "2026-02-24", "pnl_amount": 11.5, "pnl_perc": 4.007, "symbol": "FEDERALBNK", "exit_strategy": "VCP Sell", "model": "intraday", "account": "new_TS", "day_held": 12.0}, {"date": "2026-02-24", "pnl_amount": 279.4, "pnl_perc": 0.3, "symbol": "SIEMENS", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 84.0}, {"date": "2026-02-26", "pnl_amount": 350.2, "pnl_perc": 0.988, "symbol": "NAUKRI", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-02-26", "pnl_amount": 333.2, "pnl_perc": 0.934, "symbol": "VEDL", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-03-04", "pnl_amount": -22.66, "pnl_perc": -5.35, "symbol": "ASHOKLEY", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 6.0}, {"date": "2026-04-08", "pnl_amount": 711.35, "pnl_perc": 1.255, "symbol": "DLF", "exit_strategy": "Manual Sell", "model": "btst", "account": "new_TS", "day_held": 47.0}, {"date": "2026-04-10", "pnl_amount": 65.0, "pnl_perc": 1.246, "symbol": "MCX", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 23.0}, {"date": "2026-04-20", "pnl_amount": 18.0, "pnl_perc": 3.136, "symbol": "FEDERALBNK", "exit_strategy": "VCP Sell", "model": "intraday", "account": "new_TS", "day_held": 67.0}, {"date": "2026-04-30", "pnl_amount": 366.0, "pnl_perc": 14.028, "symbol": "MCX", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 43.0}, {"date": "2026-05-04", "pnl_amount": 391.0, "pnl_perc": 14.987, "symbol": "MCX", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 47.0}, {"date": "2026-05-05", "pnl_amount": 501.5, "pnl_perc": 1.0, "symbol": "VEDL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-07", "pnl_amount": 112.9, "pnl_perc": 3.0, "symbol": "BHARATFORG", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-18", "pnl_amount": 50.0, "pnl_perc": 3.32, "symbol": "GRAPHITE", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 10.0}, {"date": "2026-05-19", "pnl_amount": 420.5, "pnl_perc": 1.09, "symbol": "ADANIENSOL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-22", "pnl_amount": 495.5, "pnl_perc": 1.003, "symbol": "PIIND", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-27", "pnl_amount": 255.9, "pnl_perc": 2.374, "symbol": "CUMMINSIND", "exit_strategy": "VCP Sell", "model": "-1", "account": "new_TS", "day_held": 2.0}, {"date": "2026-05-27", "pnl_amount": 808.0, "pnl_perc": 1.751, "symbol": "GLAND", "exit_strategy": "Manual Sell", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-27", "pnl_amount": 1269.6, "pnl_perc": 2.669, "symbol": "VEDL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-05-29", "pnl_amount": 175.5, "pnl_perc": 0.971, "symbol": "COALINDIA", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 2.0}, {"date": "2026-06-01", "pnl_amount": 438.0, "pnl_perc": 1.298, "symbol": "GLAND", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-06-01", "pnl_amount": 356.35, "pnl_perc": 1.0, "symbol": "VEDL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-06-02", "pnl_amount": 1573.2, "pnl_perc": 1.798, "symbol": "TECHM", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 110.0}, {"date": "2026-06-03", "pnl_amount": 218.7, "pnl_perc": 0.801, "symbol": "GLAND", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-06-05", "pnl_amount": 609.5, "pnl_perc": 1.75, "symbol": "ADANIENSOL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 7.0}, {"date": "2026-06-05", "pnl_amount": 476.0, "pnl_perc": 1.0, "symbol": "ADANIENT", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 10.0}, {"date": "2026-06-09", "pnl_amount": 452.4, "pnl_perc": 1.114, "symbol": "GLAND", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-06-10", "pnl_amount": 101.5, "pnl_perc": 1.168, "symbol": "BERGEPAINT", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 9.0}, {"date": "2026-06-12", "pnl_amount": 597.0, "pnl_perc": 1.722, "symbol": "GLAND", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-06-18", "pnl_amount": 2002.0, "pnl_perc": 5.1, "symbol": "SIEMENS", "exit_strategy": "0.1% Buffer", "model": "btst_5pc", "account": "new_TS", "day_held": 6.0}, {"date": "2026-07-02", "pnl_amount": 1944.8, "pnl_perc": 5.03, "symbol": "ADANIGREEN", "exit_strategy": "0.1% Buffer", "model": "btst_5pc", "account": "new_TS", "day_held": 20.0}, {"date": "2026-07-06", "pnl_amount": 426.6, "pnl_perc": 1.002, "symbol": "ADANIENSOL", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 27.0}, {"date": "2026-07-13", "pnl_amount": 1098.2, "pnl_perc": 1.822, "symbol": "PAYTM", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-07-27", "pnl_amount": 300.3, "pnl_perc": 1.024, "symbol": "ADANIGREEN", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-07-27", "pnl_amount": 648.42, "pnl_perc": 1.931, "symbol": "BANDHANBNK", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 4.0}, {"date": "2026-07-27", "pnl_amount": 116.0, "pnl_perc": 1.09, "symbol": "OFSS", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-07-28", "pnl_amount": 358.6, "pnl_perc": 1.266, "symbol": "PAYTM", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 4.0}, {"date": "2026-08-03", "pnl_amount": 274.5, "pnl_perc": 1.064, "symbol": "COFORGE", "exit_strategy": "Pre-Market Sold", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-08-03", "pnl_amount": 1.73, "pnl_perc": 1.548, "symbol": "PNB", "exit_strategy": "Manual Sell", "model": "intraday", "account": "new_TS", "day_held": 96.0}, {"date": "2026-08-03", "pnl_amount": 1048.0, "pnl_perc": 2.783, "symbol": "SIEMENS", "exit_strategy": "Manual Sell", "model": "btst_5pc", "account": "new_TS", "day_held": 45.0}, {"date": "2026-08-03", "pnl_amount": 288.8, "pnl_perc": 0.953, "symbol": "SYNGENE", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 4.0}, {"date": "2026-08-05", "pnl_amount": 365.4, "pnl_perc": 1.153, "symbol": "MANAPPURAM", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 2.0}, {"date": "2026-08-10", "pnl_amount": 661.7, "pnl_perc": 1.645, "symbol": "SONACOMS", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 3.0}, {"date": "2026-08-14", "pnl_amount": 315.0, "pnl_perc": 1.083, "symbol": "MANAPPURAM", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}, {"date": "2026-08-14", "pnl_amount": 279.0, "pnl_perc": 1.224, "symbol": "OFSS", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}, {"date": "2026-08-17", "pnl_amount": 118.2, "pnl_perc": 0.51, "symbol": "LAURUSLABS", "exit_strategy": "VCP Sell", "model": "btst_100_200", "account": "new_TS", "day_held": 3.0}, {"date": "2026-08-18", "pnl_amount": 465.4, "pnl_perc": 0.886, "symbol": "LALPATHLAB", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}, {"date": "2026-08-25", "pnl_amount": 488.88, "pnl_perc": 0.993, "symbol": "IDEA", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 7.0}, {"date": "2026-08-25", "pnl_amount": 366.3, "pnl_perc": 0.897, "symbol": "SAIL", "exit_strategy": "0.1% Buffer", "model": "btst_5pc", "account": "new_TS", "day_held": 78.0}, {"date": "2026-08-31", "pnl_amount": 1222.5, "pnl_perc": 1.9, "symbol": "HDFCAMC", "exit_strategy": "Market Auction Sold", "model": "btst_1_100", "account": "new_TS", "day_held": 4.0}, {"date": "2026-08-31", "pnl_amount": 467.8, "pnl_perc": 0.909, "symbol": "TVSMOTOR", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 3.0}, {"date": "2026-09-02", "pnl_amount": 963.6, "pnl_perc": 1.743, "symbol": "ADANIGREEN", "exit_strategy": "0.1% Buffer", "model": "btst", "account": "new_TS", "day_held": 1.0}, {"date": "2026-09-03", "pnl_amount": 253.68, "pnl_perc": 0.964, "symbol": "IDEA", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}, {"date": "2026-09-08", "pnl_amount": 318.0, "pnl_perc": 0.888, "symbol": "POLICYBZR", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}, {"date": "2026-09-18", "pnl_amount": 453.6, "pnl_perc": 1.446, "symbol": "NAM-INDIA", "exit_strategy": "0.1% Buffer", "model": "btst_100_200", "account": "new_TS", "day_held": 2.0}, {"date": "2026-09-25", "pnl_amount": 585.05, "pnl_perc": 1.834, "symbol": "WHIRLPOOL", "exit_strategy": "Pre-Market Sold", "model": "btst_100_200", "account": "new_TS", "day_held": 1.0}];
+const HAS_REAL_DATES = true;
+
+const seqLabels    = ["2025-08-05", "2025-08-05", "2025-08-06", "2025-08-06", "2025-08-11", "2025-08-11", "2025-08-11", "2025-08-12", "2025-08-12", "2025-08-13", "2025-08-13", "2025-08-13", "2025-08-13", "2025-08-13", "2025-08-14", "2025-08-14", "2025-08-14", "2025-08-14", "2025-08-18", "2025-08-18", "2025-08-18", "2025-08-19", "2025-08-19", "2025-08-19", "2025-08-19", "2025-08-20", "2025-08-21", "2025-08-21", "2025-08-25", "2025-08-25", "2025-08-25", "2025-08-26", "2025-08-26", "2025-08-29", "2025-09-01", "2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-04", "2025-09-08", "2025-09-08", "2025-09-08", "2025-09-08", "2025-09-09", "2025-09-09", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-11", "2025-09-12", "2025-09-12", "2025-09-16", "2025-09-16", "2025-09-18", "2025-09-22", "2025-09-25", "2025-09-29", "2025-09-29", "2025-09-29", "2025-09-29", "2025-09-29", "2025-10-15", "2025-10-20", "2025-10-28", "2025-10-28", "2025-10-30", "2025-11-07", "2025-11-12", "2025-11-12", "2025-11-20", "2025-11-20", "2025-11-21", "2025-12-03", "2025-12-05", "2025-12-19", "2025-12-23", "2025-12-23", "2025-12-30", "2026-01-05", "2026-01-05", "2026-01-06", "2026-01-08", "2026-01-12", "2026-01-23", "2026-01-23", "2026-01-27", "2026-01-29", "2026-01-29", "2026-01-29", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-03", "2026-02-05", "2026-02-09", "2026-02-09", "2026-02-18", "2026-02-24", "2026-02-24", "2026-02-26", "2026-02-26", "2026-03-04", "2026-04-08", "2026-04-10", "2026-04-20", "2026-04-30", "2026-05-04", "2026-05-05", "2026-05-07", "2026-05-18", "2026-05-19", "2026-05-22", "2026-05-27", "2026-05-27", "2026-05-27", "2026-05-29", "2026-06-01", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-05", "2026-06-05", "2026-06-09", "2026-06-10", "2026-06-12", "2026-06-18", "2026-07-02", "2026-07-06", "2026-07-13", "2026-07-27", "2026-07-27", "2026-07-27", "2026-07-28", "2026-08-03", "2026-08-03", "2026-08-03", "2026-08-03", "2026-08-05", "2026-08-10", "2026-08-14", "2026-08-14", "2026-08-17", "2026-08-18", "2026-08-25", "2026-08-25", "2026-08-31", "2026-08-31", "2026-09-02", "2026-09-03", "2026-09-08", "2026-09-18", "2026-09-25"];
+const cumPnlAmount = [37.5, 117.3, 142.7, 213.5, 226.1, 289.1, 381.2, 507.8, 651.63, 702.73, 720.33, 776.83, 842.23, 1091.23, 1114.03, 1139.23, 1208.83, 1278.83, 1355.83, 1537.63, 1936.63, 2208.58, 2488.08, 2771.26, 3059.86, 3265.96, 3606.76, 3825.96, 3848.36, 4084.86, 4173.06, 4198.26, 4213.81, 4236.76, 4314.86, 4398.86, 4961.46, 5098.38, 5128.08, 5366.08, 5395.08, 5419.88, 5478.78, 5752.13, 5768.33, 5791.13, 5870.23, 6001.53, 6020.53, 6132.13, 6217.13, 6243.13, 6257.13, 6525.23, 6639.23, 6892.23, 7036.63, 5614.93, 3719.33, 1065.98, 60.08, -247.92, 929.18, 1693.18, 2916.78, 2886.1, 3714.5, 4164.4, 5322.9, 5907.3, 6798.0, 8212.3, 8674.8, 9286.8, 9822.85, 11760.85, 8588.94, 9411.44, 11664.24, 11665.8, 11670.22, 11665.68, 11782.68, 11745.68, 11944.18, 12337.88, 12972.28, 13625.88, 14280.83, 17994.03, 19550.43, 21510.43, 22608.43, 23475.73, 26732.33, 27157.33, 27569.38, 28236.58, 30077.78, 30611.14, 31734.64, 32595.64, 33416.24, 33727.34, 33733.04, 33744.54, 34023.94, 34374.14, 34707.34, 34684.68, 35396.03, 35461.03, 35479.03, 35845.03, 36236.03, 36737.53, 36850.43, 36900.43, 37320.93, 37816.43, 38072.33, 38880.33, 40149.93, 40325.43, 40763.43, 41119.78, 42692.98, 42911.68, 43521.18, 43997.18, 44449.58, 44551.08, 45148.08, 47150.08, 49094.88, 49521.48, 50619.68, 50919.98, 51568.4, 51684.4, 52043.0, 52317.5, 52319.23, 53367.23, 53656.03, 54021.43, 54683.13, 54998.13, 55277.13, 55395.33, 55860.73, 56349.61, 56715.91, 57938.41, 58406.21, 59369.81, 59623.49, 59941.49, 60395.09, 60980.14];
+const tradePnlPerc = [0.223, 0.909, 0.167, 0.481, 0.11, 0.933, 0.811, 1.136, 0.958, 0.293, 0.111, 0.943, 0.857, 1.024, 0.101, 0.119, 0.888, 1.026, 0.308, 1.569, 1.883, 0.898, 0.924, 1.517, 0.96, 1.007, 1.005, 1.782, 0.136, 0.925, 0.402, 0.113, 0.07, 0.092, 0.374, 0.357, 1.778, 0.915, 0.129, 1.012, 0.154, 0.161, 0.38, 1.053, 0.091, 0.136, 0.312, 0.529, 0.107, 0.489, 0.514, 0.171, 0.121, 1.164, 0.617, 1.118, 1.003, -5.489, -7.444, -9.78, -5.491, -2.127, 1.999, 1.007, 3.252, -7.274, 0.977, 0.983, 1.662, 0.897, 0.995, 1.569, 0.936, 0.922, 0.913, 5.095, -5.345, 1.486, 5.069, 0.94, 2.878, -2.736, 1.564, -0.494, 0.587, 1.007, 1.863, 0.926, 0.927, 5.663, 7.318, 9.272, 5.214, 5.16, 6.832, 3.041, 1.952, 4.688, 3.921, 2.499, 5.315, 1.049, 1.002, 1.207, 1.986, 4.007, 0.3, 0.988, 0.934, -5.35, 1.255, 1.246, 3.136, 14.028, 14.987, 1.0, 3.0, 3.32, 1.09, 1.003, 2.374, 1.751, 2.669, 0.971, 1.298, 1.0, 1.798, 0.801, 1.75, 1.0, 1.114, 1.168, 1.722, 5.1, 5.03, 1.002, 1.822, 1.024, 1.931, 1.09, 1.266, 1.064, 1.548, 2.783, 0.953, 1.153, 1.645, 1.083, 1.224, 0.51, 0.886, 0.993, 0.897, 1.9, 0.909, 1.743, 0.964, 0.888, 1.446, 1.834];
+const rollingWR    = [null, null, null, null, null, null, null, null, null, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 95.0, 90.0, 85.0, 80.0, 75.0, 75.0, 75.0, 75.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 70.0, 65.0, 70.0, 75.0, 80.0, 85.0, 85.0, 85.0, 80.0, 80.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 85.0, 90.0, 90.0, 90.0, 90.0, 90.0, 95.0, 95.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 95.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0];
+const dayHeldVals  = [0, 11, 0, 1, 0, 4, 3, 1, 8, 0, 0, 2, 6, 1, 0, 0, 7, 7, 0, 6, 4, 1, 1, 20, 1, 1, 1, 17, 0, 3, 3, 0, 0, 0, 4, 11, 0, 30, 0, 44, 0, 0, 0, 3, 0, 0, 5, 0, 0, 1, 0, 0, 0, 1, 9, 3, 8, 39, 19, 24, 17, 12, 1, 3, 55, 7, 1, 1, 1, 2, 1, 1, 1, 1, 1, 9, 47, 1, 22, 4, 4, 5, 3, 7, 0, 1, 4, 1, 1, 45, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 6, 6, 12, 84, 1, 1, 6, 47, 23, 67, 43, 47, 1, 1, 10, 1, 1, 2, 1, 1, 2, 3, 3, 110, 1, 7, 10, 1, 9, 1, 6, 20, 27, 3, 3, 4, 3, 4, 3, 96, 45, 4, 2, 3, 1, 1, 3, 1, 7, 78, 4, 3, 1, 1, 1, 2, 1];
+const winFlags     = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, true, true, true, false, true, true, true, true, true, true, true, true, true, true, false, true, true, true, true, false, true, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+
+const bySymbol       = [{"label": "ADANIGREEN", "trades": 8, "win_rate_pct": 100.0, "avg_pnl_perc": 2.6532, "total_pnl_amount": 7030.3, "avg_day_held": 3.88}, {"label": "PAYTM", "trades": 5, "win_rate_pct": 100.0, "avg_pnl_perc": 2.6222, "total_pnl_amount": 5629.7, "avg_day_held": 3.6}, {"label": "MUTHOOTFIN", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 3.7843, "total_pnl_amount": 5201.0, "avg_day_held": 17.0}, {"label": "DLF", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 3.0047, "total_pnl_amount": 4622.9, "avg_day_held": 16.33}, {"label": "GLAND", "trades": 7, "win_rate_pct": 100.0, "avg_pnl_perc": 1.3061, "total_pnl_amount": 3998.0, "avg_day_held": 2.14}, {"label": "SIEMENS", "trades": 4, "win_rate_pct": 100.0, "avg_pnl_perc": 2.3368, "total_pnl_amount": 3597.5, "avg_day_held": 34.0}, {"label": "ADANIENSOL", "trades": 6, "win_rate_pct": 100.0, "avg_pnl_perc": 2.1075, "total_pnl_amount": 3483.45, "avg_day_held": 6.17}, {"label": "VEDL", "trades": 5, "win_rate_pct": 100.0, "avg_pnl_perc": 1.201, "total_pnl_amount": 2548.85, "avg_day_held": 1.8}, {"label": "NYKAA", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 5.069, "total_pnl_amount": 2252.8, "avg_day_held": 22.0}, {"label": "TATAMOTORS", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.503, "total_pnl_amount": 1941.1, "avg_day_held": 2.0}, {"label": "ADANIPORTS", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 3.5385, "total_pnl_amount": 1732.4, "avg_day_held": 2.5}, {"label": "TECHM", "trades": 4, "win_rate_pct": 100.0, "avg_pnl_perc": 0.7492, "total_pnl_amount": 1704.2, "avg_day_held": 30.25}, {"label": "COLPAL", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 0.9663, "total_pnl_amount": 1681.2, "avg_day_held": 1.33}, {"label": "TATASTEEL", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 1.502, "total_pnl_amount": 1538.19, "avg_day_held": 3.33}, {"label": "BAJAJFINSV", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 1.1137, "total_pnl_amount": 1352.9, "avg_day_held": 2.33}, {"label": "INDUSINDBK", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 3.252, "total_pnl_amount": 1223.6, "avg_day_held": 55.0}, {"label": "HDFCAMC", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.9, "total_pnl_amount": 1222.5, "avg_day_held": 4.0}, {"label": "UPL", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 5.315, "total_pnl_amount": 1123.5, "avg_day_held": 1.0}, {"label": "ASIANPAINT", "trades": 8, "win_rate_pct": 100.0, "avg_pnl_perc": 0.8094, "total_pnl_amount": 1102.1, "avg_day_held": 0.25}, {"label": "ADANIENT", "trades": 4, "win_rate_pct": 100.0, "avg_pnl_perc": 0.9455, "total_pnl_amount": 1055.0, "avg_day_held": 4.5}, {"label": "BIOCON", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 0.9245, "total_pnl_amount": 998.55, "avg_day_held": 1.0}, {"label": "BANDHANBNK", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.724, "total_pnl_amount": 931.6, "avg_day_held": 12.0}, {"label": "MCX", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 10.087, "total_pnl_amount": 822.0, "avg_day_held": 37.67}, {"label": "IDEA", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 0.9785, "total_pnl_amount": 742.56, "avg_day_held": 4.0}, {"label": "MANAPPURAM", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.118, "total_pnl_amount": 680.4, "avg_day_held": 1.5}, {"label": "SONACOMS", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.645, "total_pnl_amount": 661.7, "avg_day_held": 3.0}, {"label": "INDUSTOWER", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.029, "total_pnl_amount": 614.15, "avg_day_held": 2.0}, {"label": "BAJAJHLDNG", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.922, "total_pnl_amount": 612.0, "avg_day_held": 1.0}, {"label": "SBICARD", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.0835, "total_pnl_amount": 599.7, "avg_day_held": 3.5}, {"label": "WHIRLPOOL", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.834, "total_pnl_amount": 585.05, "avg_day_held": 1.0}, {"label": "EICHERMOT", "trades": 3, "win_rate_pct": 66.67, "avg_pnl_perc": 1.3703, "total_pnl_amount": 505.0, "avg_day_held": 3.67}, {"label": "SAIL", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 0.906, "total_pnl_amount": 503.22, "avg_day_held": 54.0}, {"label": "PIIND", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.003, "total_pnl_amount": 495.5, "avg_day_held": 1.0}, {"label": "TVSMOTOR", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.909, "total_pnl_amount": 467.8, "avg_day_held": 3.0}, {"label": "LALPATHLAB", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.886, "total_pnl_amount": 465.4, "avg_day_held": 1.0}, {"label": "NAM-INDIA", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.446, "total_pnl_amount": 453.6, "avg_day_held": 2.0}, {"label": "NAUKRI", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.007, "total_pnl_amount": 420.2, "avg_day_held": 4.0}, {"label": "ITC", "trades": 5, "win_rate_pct": 80.0, "avg_pnl_perc": 0.2676, "total_pnl_amount": 414.95, "avg_day_held": 11.4}, {"label": "OFSS", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 1.157, "total_pnl_amount": 395.0, "avg_day_held": 2.0}, {"label": "BAJFINANCE", "trades": 4, "win_rate_pct": 100.0, "avg_pnl_perc": 0.3762, "total_pnl_amount": 322.3, "avg_day_held": 0.0}, {"label": "POLICYBZR", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.888, "total_pnl_amount": 318.0, "avg_day_held": 1.0}, {"label": "SYNGENE", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.953, "total_pnl_amount": 288.8, "avg_day_held": 4.0}, {"label": "COFORGE", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.064, "total_pnl_amount": 274.5, "avg_day_held": 3.0}, {"label": "CUMMINSIND", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 2.374, "total_pnl_amount": 255.9, "avg_day_held": 2.0}, {"label": "SUNPHARMA", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.024, "total_pnl_amount": 249.0, "avg_day_held": 1.0}, {"label": "TCS", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.782, "total_pnl_amount": 219.2, "avg_day_held": 17.0}, {"label": "BHARTIARTL", "trades": 2, "win_rate_pct": 100.0, "avg_pnl_perc": 0.4315, "total_pnl_amount": 189.7, "avg_day_held": 2.5}, {"label": "COALINDIA", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.971, "total_pnl_amount": 175.5, "avg_day_held": 2.0}, {"label": "HDFCBANK", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 0.2963, "total_pnl_amount": 156.4, "avg_day_held": 3.0}, {"label": "HINDALCO", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.003, "total_pnl_amount": 144.4, "avg_day_held": 8.0}, {"label": "LAURUSLABS", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.51, "total_pnl_amount": 118.2, "avg_day_held": 3.0}, {"label": "BHARATFORG", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 3.0, "total_pnl_amount": 112.9, "avg_day_held": 1.0}, {"label": "BERGEPAINT", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.168, "total_pnl_amount": 101.5, "avg_day_held": 9.0}, {"label": "PEL", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.811, "total_pnl_amount": 92.1, "avg_day_held": 3.0}, {"label": "HAVELLS", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.357, "total_pnl_amount": 84.0, "avg_day_held": 11.0}, {"label": "TORNTPHARM", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.312, "total_pnl_amount": 79.1, "avg_day_held": 5.0}, {"label": "JUBLFOOD", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.857, "total_pnl_amount": 65.4, "avg_day_held": 6.0}, {"label": "DIVISLAB", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.943, "total_pnl_amount": 56.5, "avg_day_held": 2.0}, {"label": "GRAPHITE", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 3.32, "total_pnl_amount": 50.0, "avg_day_held": 10.0}, {"label": "FEDERALBNK", "trades": 3, "win_rate_pct": 100.0, "avg_pnl_perc": 3.043, "total_pnl_amount": 35.2, "avg_day_held": 28.33}, {"label": "ICICIBANK", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.136, "total_pnl_amount": 22.8, "avg_day_held": 0.0}, {"label": "UNIONBANK", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 2.878, "total_pnl_amount": 4.42, "avg_day_held": 4.0}, {"label": "PNB", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.548, "total_pnl_amount": 1.73, "avg_day_held": 96.0}, {"label": "IOC", "trades": 2, "win_rate_pct": 50.0, "avg_pnl_perc": -0.898, "total_pnl_amount": -2.98, "avg_day_held": 4.5}, {"label": "ASHOKLEY", "trades": 1, "win_rate_pct": 0.0, "avg_pnl_perc": -5.35, "total_pnl_amount": -22.66, "avg_day_held": 6.0}, {"label": "GOLDBEES", "trades": 1, "win_rate_pct": 0.0, "avg_pnl_perc": -7.274, "total_pnl_amount": -30.68, "avg_day_held": 7.0}, {"label": "HINDUNILVR", "trades": 2, "win_rate_pct": 50.0, "avg_pnl_perc": -2.662, "total_pnl_amount": -980.5, "avg_day_held": 8.5}, {"label": "ICICIGI", "trades": 1, "win_rate_pct": 0.0, "avg_pnl_perc": -5.489, "total_pnl_amount": -1421.7, "avg_day_held": 39.0}, {"label": "DABUR", "trades": 6, "win_rate_pct": 83.33, "avg_pnl_perc": -0.9702, "total_pnl_amount": -1630.85, "avg_day_held": 4.67}, {"label": "TITAN", "trades": 2, "win_rate_pct": 50.0, "avg_pnl_perc": -3.6105, "total_pnl_amount": -1858.1, "avg_day_held": 9.5}, {"label": "CHOLAFIN", "trades": 3, "win_rate_pct": 66.67, "avg_pnl_perc": -0.9587, "total_pnl_amount": -1899.51, "avg_day_held": 16.33}];
+const byExitStrategy = [{"label": "0.1% Buffer", "trades": 73, "win_rate_pct": 100.0, "avg_pnl_perc": 1.1409, "total_pnl_amount": 30691.61, "avg_day_held": 5.86}, {"label": "Pre-Market Sold", "trades": 35, "win_rate_pct": 97.14, "avg_pnl_perc": 2.3188, "total_pnl_amount": 22690.7, "avg_day_held": 9.11}, {"label": "VCP Sell", "trades": 14, "win_rate_pct": 92.86, "avg_pnl_perc": 3.6257, "total_pnl_amount": 6393.29, "avg_day_held": 19.07}, {"label": "8MA", "trades": 10, "win_rate_pct": 100.0, "avg_pnl_perc": 0.6818, "total_pnl_amount": 2075.15, "avg_day_held": 1.7}, {"label": "Market Auction Sold", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.9, "total_pnl_amount": 1222.5, "avg_day_held": 4.0}, {"label": "8MA_fallback_to_0.1% Buffer", "trades": 9, "win_rate_pct": 100.0, "avg_pnl_perc": 0.1866, "total_pnl_amount": 327.0, "avg_day_held": 0.0}, {"label": "BTST Sold Same Day", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 0.587, "total_pnl_amount": 198.5, "avg_day_held": 0.0}, {"label": "unknown", "trades": 5, "win_rate_pct": 60.0, "avg_pnl_perc": 0.4304, "total_pnl_amount": 81.44, "avg_day_held": 4.6}, {"label": "Manual Sell", "trades": 12, "win_rate_pct": 50.0, "avg_pnl_perc": -2.1275, "total_pnl_amount": -2700.05, "avg_day_held": 30.25}];
+const byModel        = [{"label": "btst", "trades": 86, "win_rate_pct": 98.84, "avg_pnl_perc": 1.5955, "total_pnl_amount": 45777.05, "avg_day_held": 7.22}, {"label": "btst_5pc", "trades": 7, "win_rate_pct": 100.0, "avg_pnl_perc": 4.2339, "total_pnl_amount": 13265.1, "avg_day_held": 32.14}, {"label": "btst_100_200", "trades": 10, "win_rate_pct": 100.0, "avg_pnl_perc": 1.0737, "total_pnl_amount": 3744.61, "avg_day_held": 2.1}, {"label": "-1", "trades": 12, "win_rate_pct": 75.0, "avg_pnl_perc": 2.9798, "total_pnl_amount": 1299.58, "avg_day_held": 12.92}, {"label": "btst_1_100", "trades": 1, "win_rate_pct": 100.0, "avg_pnl_perc": 1.9, "total_pnl_amount": 1222.5, "avg_day_held": 4.0}, {"label": "intraday", "trades": 44, "win_rate_pct": 86.36, "avg_pnl_perc": -0.2826, "total_pnl_amount": -4328.7, "avg_day_held": 8.98}];
+const byAccount      = [{"label": "new_TS", "trades": 160, "win_rate_pct": 93.75, "avg_pnl_perc": 1.2675, "total_pnl_amount": 60980.14, "avg_day_held": 8.88}];
+
+const GOOD = 'rgba(59,109,17,.8)';
+const BAD  = 'rgba(163,45,45,.8)';
+const GRID = { color: 'rgba(0,0,0,.05)' };
+const TICKS = { maxTicksLimit: 8, maxRotation: 30 };
+
+const ZOOM_X = {
+  pan:  { enabled: true, mode: 'x' },
+  zoom: { wheel: { enabled: true }, pinch: { enabled: true }, drag: { enabled: false }, mode: 'x' }
+};
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'rgba(20,20,18,.94)',
+  titleColor: 'rgba(255,255,255,.7)',
+  bodyColor: '#fff',
+  bodyFont: { weight: '600' },
+  padding: 10,
+  cornerRadius: 8
+};
+
+function barChart(id, labels, values, colorFn, tooltipSuffix) {
+  return new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: values.map(colorFn), borderRadius: 3 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP_STYLE, callbacks: { label: ctx => ' ' + ctx.parsed.y + (tooltipSuffix || '') } }
+      },
+      scales: { x: { ticks: TICKS, grid: { display: false } }, y: { grid: GRID } }
+    }
+  });
+}
+
+/* ── Equity curve ─────────────────────────────────────────────────── */
+const equityChart = new Chart(document.getElementById('equityChart'), {
+  type: 'line',
+  data: { labels: seqLabels, datasets: [{
+    label: 'Cumulative P&L', data: cumPnlAmount,
+    borderColor: '#185FA5', backgroundColor: 'rgba(24,95,165,.07)',
+    fill: true, borderWidth: 2, tension: .25, pointRadius: 0
+  }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...TOOLTIP_STYLE, callbacks: { label: ctx => ' Cumulative P&L: ' + ctx.parsed.y.toFixed(2) } },
+      zoom: ZOOM_X
+    },
+    scales: { x: { ticks: TICKS, grid: { display: false } }, y: { grid: GRID } }
+  }
+});
+
+/* ── Win / loss / flat pie ────────────────────────────────────────── */
+const winCount0  = winFlags.filter(v => v === true).length;
+const flatCount0 = tradePnlPerc.filter(v => v === 0).length;
+const lossCount0 = tradePnlPerc.length - winCount0 - flatCount0;
+const winPieChart = new Chart(document.getElementById('winPieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Win', 'Loss', 'Flat'],
+    datasets: [{ data: [winCount0, lossCount0, flatCount0], backgroundColor: [GOOD, BAD, 'rgba(136,135,128,.7)'], borderWidth: 0, hoverOffset: 6 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, cutout: '62%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...TOOLTIP_STYLE,
+        callbacks: {
+          label: ctx => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
+            return ' ' + ctx.label + ': ' + ctx.parsed + ' (' + (ctx.parsed / total * 100).toFixed(1) + '%)';
+          }
+        }
+      }
+    }
+  }
+});
+
+function updatePieLegend(winCount, lossCount, flatCount) {
+  const total = (winCount + lossCount + flatCount) || 1;
+  document.getElementById('pieLegend').innerHTML = [
+    [GOOD, 'Win', winCount], [BAD, 'Loss', lossCount], ['rgba(136,135,128,.7)', 'Flat', flatCount]
+  ].map(([clr, lbl, cnt]) =>
+    `<span style="display:flex;align-items:center;gap:5px">
+       <span style="width:10px;height:10px;border-radius:2px;background:${clr}"></span>
+       <span><strong>${(cnt / total * 100).toFixed(1)}%</strong> ${lbl} (${cnt})</span>
+     </span>`
+  ).join('');
+}
+updatePieLegend(winCount0, lossCount0, flatCount0);
+
+/* ── Rolling win rate ─────────────────────────────────────────────── */
+const rollingChart = new Chart(document.getElementById('rollingChart'), {
+  type: 'line',
+  data: { labels: seqLabels, datasets: [{
+    label: 'Rolling win rate', data: rollingWR,
+    borderColor: '#185FA5', backgroundColor: 'transparent',
+    borderWidth: 2, tension: .25, pointRadius: 0, spanGaps: true
+  }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...TOOLTIP_STYLE, callbacks: { label: ctx => ctx.parsed.y === null ? ' N/A' : ' Win rate: ' + ctx.parsed.y.toFixed(1) + '%' } },
+      zoom: ZOOM_X
+    },
+    scales: { x: { ticks: TICKS, grid: { display: false } }, y: { grid: GRID, min: 0, max: 100, ticks: { callback: v => v + '%' } } }
+  }
+});
+
+/* ── Breakdown bar charts (win rate %) ───────────────────────────── */
+function toBarData(rows) {
+  return { labels: rows.map(r => r.label), values: rows.map(r => r.win_rate_pct) };
+}
+const symbolBar0 = toBarData(bySymbol);
+const symbolChartInstance = barChart('symbolChart', symbolBar0.labels, symbolBar0.values, v => v >= 50 ? GOOD : BAD, '%');
+
+const exitBar0 = toBarData(byExitStrategy);
+const exitChartInstance = barChart('exitChart', exitBar0.labels, exitBar0.values, v => v >= 50 ? GOOD : BAD, '%');
+
+const modelBar0 = toBarData(byModel);
+const modelChartInstance = barChart('modelChart', modelBar0.labels, modelBar0.values, v => v >= 50 ? GOOD : BAD, '%');
+
+/* ── Holding period vs outcome (avg days held: winners vs losers) ─── */
+const holdWinners0 = dayHeldVals.filter((_, i) => winFlags[i]);
+const holdLosers0  = dayHeldVals.filter((_, i) => !winFlags[i]);
+const avgHold = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+const holdChartInstance = barChart('holdChart', ['Winners', 'Losers'], [
+  Math.round(avgHold(holdWinners0) * 100) / 100,
+  Math.round(avgHold(holdLosers0) * 100) / 100
+], (v, i) => i === 0 ? GOOD : BAD, ' days avg');
+
+/* ── Chart zoom reset wiring ──────────────────────────────────────── */
+const CHART_REGISTRY = { equityChart, rollingChart };
+document.body.addEventListener('click', e => {
+  const btn = e.target.closest('[data-chart-reset]');
+  if (btn && CHART_REGISTRY[btn.dataset.chartReset]) CHART_REGISTRY[btn.dataset.chartReset].resetZoom();
+});
+Object.keys(CHART_REGISTRY).forEach(id => {
+  document.getElementById(id).addEventListener('dblclick', () => CHART_REGISTRY[id].resetZoom());
+});
+
+/* ── Sortable breakdown tables (rows can be swapped out by the filter) ── */
+const TABLE_STATE = {};
+
+function renderTable(tableId) {
+  const st = TABLE_STATE[tableId];
+  let data = st.rows.slice();
+  if (st.key) {
+    data.sort((a, b) => {
+      const av = a[st.key], bv = b[st.key];
+      if (typeof av === 'string') return av.localeCompare(bv) * st.dir;
+      return ((av ?? 0) - (bv ?? 0)) * st.dir;
+    });
+  }
+  document.querySelector('#' + tableId + ' tbody').innerHTML = data.map(row_ => {
+    const cls = row_.avg_pnl_perc > 0 ? 'good' : 'bad';
+    const avgDh = row_.avg_day_held === null || row_.avg_day_held === undefined ? 'N/A' : row_.avg_day_held;
+    return `<tr><td>${row_.label}</td><td>${row_.trades}</td><td>${row_.win_rate_pct}%</td>` +
+      `<td class="${cls}">${row_.avg_pnl_perc.toFixed(4)}%</td><td>${row_.total_pnl_amount.toFixed(2)}</td><td>${avgDh}</td></tr>`;
+  }).join('') || "<tr><td colspan='6' style='color:#888780;font-size:13px'>No data.</td></tr>";
+}
+
+function initTable(tableId, initialRows) {
+  TABLE_STATE[tableId] = { rows: initialRows, key: null, dir: 1 };
+  document.querySelectorAll('#' + tableId + ' th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const st = TABLE_STATE[tableId];
+      const key = th.dataset.sort;
+      st.dir = st.key === key ? -st.dir : 1;
+      st.key = key;
+      document.querySelectorAll('#' + tableId + ' th.sortable').forEach(t => t.classList.remove('sort-asc', 'sort-desc'));
+      th.classList.add(st.dir === 1 ? 'sort-asc' : 'sort-desc');
+      renderTable(tableId);
+    });
+  });
+  renderTable(tableId);
+}
+
+function updateTableData(tableId, newRows) {
+  TABLE_STATE[tableId].rows = newRows;
+  renderTable(tableId);
+}
+
+initTable('symbolTable', bySymbol);
+initTable('exitTable', byExitStrategy);
+initTable('modelTable', byModel);
+initTable('accountTable', byAccount);
+
+/* ───────────────────────────────────────────────────────────────────
+   Date filter — recomputes every metric client-side from ALL_TRADES
+   ─────────────────────────────────────────────────────────────────── */
+function round(v, d) {
+  if (v === null || v === undefined || Number.isNaN(v)) return null;
+  const f = Math.pow(10, d);
+  return Math.round(v * f) / f;
+}
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n;
+  const my = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < n; i++) {
+    const a = xs[i] - mx, b = ys[i] - my;
+    num += a * b; dx += a * a; dy += b * b;
+  }
+  return (dx === 0 || dy === 0) ? null : num / Math.sqrt(dx * dy);
+}
+
+function computeCore(trades) {
+  const n = trades.length;
+  if (n === 0) {
+    return { total_trades: 0, win_rate_pct: null, avg_pnl_perc: null, total_pnl_amount: 0,
+      profit_factor: null, win_loss_ratio: null, largest_win_pct: null, largest_loss_pct: null };
+  }
+  const wins = trades.filter(t => t.pnl_perc > 0);
+  const losses = trades.filter(t => t.pnl_perc < 0);
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  const mean = arr => arr.length ? sum(arr) / arr.length : null;
+  const pnlPercs = trades.map(t => t.pnl_perc);
+  const winPercs = wins.map(t => t.pnl_perc);
+  const lossPercs = losses.map(t => t.pnl_perc);
+  const totalGains = sum(wins.map(t => t.pnl_amount));
+  const totalLosses = sum(losses.map(t => t.pnl_amount));
+  const meanLoss = mean(lossPercs);
+  return {
+    total_trades: n,
+    win_rate_pct: round(wins.length / n * 100, 2),
+    avg_pnl_perc: round(mean(pnlPercs), 4),
+    total_pnl_amount: round(sum(trades.map(t => t.pnl_amount)), 2),
+    profit_factor: totalLosses !== 0 ? round(totalGains / Math.abs(totalLosses), 3) : null,
+    win_loss_ratio: (wins.length && losses.length && meanLoss !== 0)
+      ? round(Math.abs(mean(winPercs) / meanLoss), 3) : null,
+    largest_win_pct: round(Math.max(...pnlPercs), 4),
+    largest_loss_pct: round(Math.min(...pnlPercs), 4),
+  };
+}
+
+function computeRisk(trades) {
+  const n = trades.length;
+  if (n === 0) {
+    return { pnl_perc_std_dev: null, sharpe_like_ratio: null, max_drawdown_amount: null,
+      longest_win_streak: 0, longest_loss_streak: 0 };
+  }
+  let cum = 0, runningMax = -Infinity, maxDrawdown = 0;
+  trades.forEach(t => {
+    cum += t.pnl_amount;
+    runningMax = Math.max(runningMax, cum);
+    maxDrawdown = Math.min(maxDrawdown, cum - runningMax);
+  });
+  const returns = trades.map(t => t.pnl_perc);
+  const meanR = returns.reduce((a, b) => a + b, 0) / n;
+  const std = n > 1 ? Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - meanR, 2), 0) / (n - 1)) : null;
+  const sharpe = (std && std !== 0) ? round(meanR / std, 3) : null;
+
+  let curRun = 0, curVal = null, longestWin = 0, longestLoss = 0;
+  trades.forEach(t => {
+    const v = t.pnl_perc > 0;
+    if (v === curVal) curRun++; else { curRun = 1; curVal = v; }
+    if (v) longestWin = Math.max(longestWin, curRun);
+    else longestLoss = Math.max(longestLoss, curRun);
+  });
+
+  return {
+    pnl_perc_std_dev: std !== null ? round(std, 4) : null,
+    sharpe_like_ratio: sharpe,
+    max_drawdown_amount: round(maxDrawdown, 2),
+    longest_win_streak: longestWin,
+    longest_loss_streak: longestLoss,
+  };
+}
+
+function computeHolding(trades) {
+  const withDH = trades.filter(t => t.day_held !== null && t.day_held !== undefined);
+  const wins = withDH.filter(t => t.pnl_perc > 0);
+  const losses = withDH.filter(t => t.pnl_perc < 0);
+  const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const corr = pearson(withDH.map(t => t.day_held), withDH.map(t => t.pnl_perc));
+  return {
+    avg_day_held_all: withDH.length ? round(mean(withDH.map(t => t.day_held)), 2) : null,
+    avg_day_held_winners: wins.length ? round(mean(wins.map(t => t.day_held)), 2) : null,
+    avg_day_held_losers: losses.length ? round(mean(losses.map(t => t.day_held)), 2) : null,
+    corr_day_held_vs_pnl_perc: withDH.length > 1 ? round(corr, 3) : null,
+  };
+}
+
+function computeGroupBreakdown(trades, key) {
+  const groups = {};
+  trades.forEach(t => {
+    const k = t[key];
+    if (k === null || k === undefined || k === '') return;
+    (groups[k] = groups[k] || []).push(t);
+  });
+  const rows = Object.keys(groups).map(label => {
+    const g = groups[label];
+    const wins = g.filter(t => t.pnl_perc > 0).length;
+    const avgPnl = g.reduce((a, t) => a + t.pnl_perc, 0) / g.length;
+    const totalPnl = g.reduce((a, t) => a + t.pnl_amount, 0);
+    const withDH = g.filter(t => t.day_held !== null && t.day_held !== undefined);
+    const avgDH = withDH.length ? withDH.reduce((a, t) => a + t.day_held, 0) / withDH.length : null;
+    return {
+      label: String(label),
+      trades: g.length,
+      win_rate_pct: round(wins / g.length * 100, 2),
+      avg_pnl_perc: round(avgPnl, 4),
+      total_pnl_amount: round(totalPnl, 2),
+      avg_day_held: avgDH !== null ? round(avgDH, 2) : null,
+    };
+  });
+  rows.sort((a, b) => b.total_pnl_amount - a.total_pnl_amount);
+  return rows;
+}
+
+function computeRollingWinRate(trades, window = 20) {
+  const n = trades.length;
+  if (n === 0) return [];
+  const effWindow = n < window * 2 ? Math.min(window, Math.max(1, Math.floor(n / 3))) : window;
+  const minPeriods = Math.max(1, Math.floor(effWindow / 2));
+  const winFlagsArr = trades.map(t => t.pnl_perc > 0 ? 1 : 0);
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    const start = Math.max(0, i - effWindow + 1);
+    const windowVals = winFlagsArr.slice(start, i + 1);
+    if (windowVals.length < minPeriods) { result.push(null); continue; }
+    const avg = windowVals.reduce((a, b) => a + b, 0) / windowVals.length * 100;
+    result.push(Math.round(avg * 10) / 10);
+  }
+  return result;
+}
+
+function computeSeqLabels(trades) {
+  if (HAS_REAL_DATES) return trades.map(t => t.date || '');
+  return trades.map((_, i) => 'Trade ' + (i + 1));
+}
+
+function computeCumPnl(trades) {
+  let cum = 0;
+  return trades.map(t => { cum += t.pnl_amount; return round(cum, 2); });
+}
+
+function fmtSigned(val, suffix = '', decimals = 2) {
+  return (val === null || val === undefined) ? 'N/A' : (val >= 0 ? '+' : '') + val.toFixed(decimals) + suffix;
+}
+function fmtPlainJs(val, suffix = '', decimals = 2) {
+  return (val === null || val === undefined) ? 'N/A' : val.toFixed(decimals) + suffix;
+}
+function colorClass(val, higherGood = true) {
+  if (val === null || val === undefined) return 'neutral';
+  return (val > 0) === higherGood ? 'good' : 'bad';
+}
+function setKpi(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  if (cls) el.className = 'kpi-value ' + cls;
+}
+
+function updateBarChartInstance(chart, rows) {
+  chart.data.labels = rows.map(r => r.label);
+  const values = rows.map(r => r.win_rate_pct);
+  chart.data.datasets[0].data = values;
+  chart.data.datasets[0].backgroundColor = values.map(v => v >= 50 ? GOOD : BAD);
+  chart.update();
+}
+
+function renderAll(trades) {
+  const core = computeCore(trades);
+  const risk = computeRisk(trades);
+  const holding = computeHolding(trades);
+  const symbolRows = computeGroupBreakdown(trades, 'symbol');
+  const exitRows = computeGroupBreakdown(trades, 'exit_strategy');
+  const modelRows = computeGroupBreakdown(trades, 'model');
+  const accountRows = computeGroupBreakdown(trades, 'account');
+  const labels = computeSeqLabels(trades);
+  const cumPnl = computeCumPnl(trades);
+  const rolling = computeRollingWinRate(trades);
+  const dayHeld = trades.map(t => t.day_held);
+  const wins = trades.map(t => t.pnl_perc > 0);
+
+  setKpi('kpi-total-trades', String(core.total_trades));
+  setKpi('kpi-win-rate', fmtPlainJs(core.win_rate_pct, '%'), colorClass(core.win_rate_pct !== null ? core.win_rate_pct - 50 : null));
+  setKpi('kpi-profit-factor', core.profit_factor !== null ? fmtPlainJs(core.profit_factor) : 'N/A', colorClass((core.profit_factor || 0) - 1));
+  setKpi('kpi-win-loss-ratio', core.win_loss_ratio !== null ? fmtPlainJs(core.win_loss_ratio) : 'N/A', colorClass((core.win_loss_ratio || 0) - 1));
+  setKpi('kpi-avg-pnl', fmtSigned(core.avg_pnl_perc, '%', 4), colorClass(core.avg_pnl_perc));
+  setKpi('kpi-total-pnl', fmtSigned(core.total_pnl_amount), colorClass(core.total_pnl_amount));
+  setKpi('kpi-largest-win', fmtSigned(core.largest_win_pct, '%', 4));
+  setKpi('kpi-largest-loss', fmtSigned(core.largest_loss_pct, '%', 4));
+
+  setKpi('kpi-volatility', risk.pnl_perc_std_dev !== null ? fmtPlainJs(risk.pnl_perc_std_dev, '', 4) : 'N/A');
+  setKpi('kpi-sharpe', risk.sharpe_like_ratio !== null ? fmtSigned(risk.sharpe_like_ratio, '', 3) : 'N/A', colorClass(risk.sharpe_like_ratio));
+  setKpi('kpi-max-drawdown', risk.max_drawdown_amount !== null ? fmtSigned(risk.max_drawdown_amount) : 'N/A');
+  setKpi('kpi-win-streak', String(risk.longest_win_streak));
+  setKpi('kpi-loss-streak', String(risk.longest_loss_streak));
+  setKpi('kpi-avg-days-held', holding.avg_day_held_all !== null ? fmtPlainJs(holding.avg_day_held_all) : 'N/A');
+  const subEl = document.getElementById('kpi-avg-days-held-sub');
+  if (subEl) {
+    subEl.textContent = `Winners: ${holding.avg_day_held_winners !== null ? fmtPlainJs(holding.avg_day_held_winners) : 'N/A'} · Losers: ${holding.avg_day_held_losers !== null ? fmtPlainJs(holding.avg_day_held_losers) : 'N/A'}`;
+  }
+
+  equityChart.data.labels = labels;
+  equityChart.data.datasets[0].data = cumPnl;
+  equityChart.resetZoom();
+  equityChart.update();
+
+  rollingChart.data.labels = labels;
+  rollingChart.data.datasets[0].data = rolling;
+  rollingChart.resetZoom();
+  rollingChart.update();
+
+  const winCount = wins.filter(v => v).length;
+  const flatCount = trades.filter(t => t.pnl_perc === 0).length;
+  const lossCount = trades.length - winCount - flatCount;
+  winPieChart.data.datasets[0].data = [winCount, lossCount, flatCount];
+  winPieChart.update();
+  updatePieLegend(winCount, lossCount, flatCount);
+
+  updateBarChartInstance(symbolChartInstance, symbolRows);
+  updateBarChartInstance(exitChartInstance, exitRows);
+  updateBarChartInstance(modelChartInstance, modelRows);
+
+  const holdWinners = dayHeld.filter((v, i) => wins[i] && v !== null && v !== undefined);
+  const holdLosers = dayHeld.filter((v, i) => !wins[i] && v !== null && v !== undefined);
+  holdChartInstance.data.datasets[0].data = [
+    Math.round(avgHold(holdWinners) * 100) / 100,
+    Math.round(avgHold(holdLosers) * 100) / 100
+  ];
+  holdChartInstance.update();
+
+  updateTableData('symbolTable', symbolRows);
+  updateTableData('exitTable', exitRows);
+  updateTableData('modelTable', modelRows);
+  updateTableData('accountTable', accountRows);
+}
+
+function getMaxDate() {
+  const times = ALL_TRADES.map(t => t.date).filter(Boolean).map(d => new Date(d).getTime());
+  return times.length ? new Date(Math.max(...times)) : null;
+}
+
+function getRangeForPreset(preset) {
+  if (preset === 'all') return null;
+  const maxDate = getMaxDate();
+  if (!maxDate) return null;
+  let start = new Date(maxDate);
+  if (preset === '1m') start.setMonth(start.getMonth() - 1);
+  else if (preset === '3m') start.setMonth(start.getMonth() - 3);
+  else if (preset === '6m') start.setMonth(start.getMonth() - 6);
+  else if (preset === '1y') start.setFullYear(start.getFullYear() - 1);
+  else if (preset === 'ytd') start = new Date(maxDate.getFullYear(), 0, 1);
+  return { start, end: maxDate };
+}
+
+function filterTrades(range) {
+  if (!range || !HAS_REAL_DATES) return ALL_TRADES;
+  return ALL_TRADES.filter(t => {
+    if (!t.date) return false;
+    const d = new Date(t.date);
+    return d >= range.start && d <= range.end;
+  });
+}
+
+function applyFilter(range, label) {
+  const trades = filterTrades(range);
+  const summaryEl = document.getElementById('filterSummary');
+  if (summaryEl) summaryEl.textContent = `Showing: ${label} (${trades.length} trades)`;
+  renderAll(trades);
+}
+
+if (HAS_REAL_DATES) {
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const startInput = document.getElementById('customStart');
+      const endInput = document.getElementById('customEnd');
+      if (startInput) startInput.value = '';
+      if (endInput) endInput.value = '';
+      applyFilter(getRangeForPreset(btn.dataset.preset), btn.textContent.trim());
+    });
+  });
+
+  const applyBtn = document.getElementById('applyCustomRange');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      const s = document.getElementById('customStart').value;
+      const e = document.getElementById('customEnd').value;
+      if (!s || !e) return;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      applyFilter({ start: new Date(s), end: new Date(e) }, `${s} to ${e}`);
+    });
+  }
+
+  const clearBtn = document.getElementById('clearCustomRange');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('customStart').value = '';
+      document.getElementById('customEnd').value = '';
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      const allBtn = document.querySelector('.filter-btn[data-preset="all"]');
+      if (allBtn) allBtn.classList.add('active');
+      applyFilter(null, 'All');
+    });
+  }
+}
+</script>
+</body>
+</html>
